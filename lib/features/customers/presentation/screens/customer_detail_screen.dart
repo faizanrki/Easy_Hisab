@@ -51,8 +51,8 @@ class CustomerDetailScreen extends ConsumerWidget {
       archive: shouldArchive,
     );
 
-    ref.refresh(customerDetailProvider(customerId));
-    ref.refresh(customerListProvider);
+    final _ = ref.refresh(customerDetailProvider(customerId));
+    final _ = ref.refresh(customerListProvider);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

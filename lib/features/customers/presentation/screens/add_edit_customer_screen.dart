@@ -78,9 +78,9 @@ class _AddEditCustomerScreenState
       }
 
       if (widget.isEditing) {
-        ref.refresh(customerDetailProvider(widget.customerId!));
+        final _ = ref.refresh(customerDetailProvider(widget.customerId!));
       }
-      ref.refresh(customerListProvider);
+      final _ = ref.refresh(customerListProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

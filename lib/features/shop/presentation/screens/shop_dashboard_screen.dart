@@ -243,13 +243,7 @@ class _QuickActionsGrid extends StatelessWidget {
                 icon: Icons.inventory_2_outlined,
                 label: 'Products',
                 subtitle: 'Grocery catalog',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Product catalog (Module 04) next'),
-                    ),
-                  );
-                },
+                onTap: () => context.push(AppRoutes.productList),
               ),
             ),
           ],
