@@ -313,6 +313,28 @@ class _QuickActionsGrid extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.insights_rounded,
+                label: 'Analytics',
+                subtitle: 'Cash flow & exposure',
+                onTap: () => context.push(AppRoutes.analytics),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.backup_outlined,
+                label: 'Backup & Safety',
+                subtitle: 'Export & integrity check',
+                onTap: () => context.push(AppRoutes.backup),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
