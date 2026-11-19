@@ -42,10 +42,12 @@ void main() {
   }
 
   Future<void> settleAsync(WidgetTester tester) async {
-    await tester.pump();
-    await tester.runAsync(
-      () => Future.delayed(const Duration(milliseconds: 100)),
-    );
+    for (int i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 50)),
+      );
+    }
     await tester.pumpAndSettle();
   }
 

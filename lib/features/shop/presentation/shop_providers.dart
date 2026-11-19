@@ -36,7 +36,8 @@ final updateShopUseCaseProvider = Provider<UpdateShop>((ref) {
 
 final getActiveShopUseCaseProvider = Provider<GetActiveShop>((ref) {
   final repo = ref.watch(shopRepositoryProvider);
-  return GetActiveShop(repo);
+  final auth = ref.watch(authContextProvider);
+  return GetActiveShop(repo, auth);
 });
 
 /// Async notifier for the currently active shop.

@@ -11,6 +11,9 @@ abstract interface class ShopRepository {
 
   Future<Shop?> findById(String shopId);
 
+  /// Finds the latest shop owned by the given authentication UID.
+  Future<Shop?> findByOwnerUid(String ownerUid);
+
   /// ID of the shop selected on this device, if any.
   Future<String?> activeShopId();
 }

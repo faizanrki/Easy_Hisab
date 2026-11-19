@@ -53,6 +53,18 @@ final class SqliteShopRepository implements ShopRepository {
       });
 
   @override
+  Future<Shop?> findByOwnerUid(String ownerUid) => _guard(() async {
+        final rows = await _db.executor.query(
+          'shops',
+          where: 'owner_uid = ?',
+          whereArgs: [ownerUid],
+          orderBy: 'created_at DESC',
+          limit: 1,
+        );
+        return rows.isEmpty ? null : ShopMapper.fromRow(rows.first);
+      });
+
+  @override
   Future<String?> activeShopId() => _guard(() async {
         final rows = await _db.executor.query('app_settings',
             where: 'key = ?', whereArgs: [_activeShopKey], limit: 1);
