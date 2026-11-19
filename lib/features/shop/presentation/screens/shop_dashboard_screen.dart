@@ -65,6 +65,11 @@ class ShopDashboardScreen extends ConsumerWidget {
             },
           ),
           IconButton(
+            tooltip: 'Analytics & Insights',
+            icon: const Icon(Icons.insights_rounded),
+            onPressed: () => context.push(AppRoutes.analytics),
+          ),
+          IconButton(
             tooltip: 'Shop Settings',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
