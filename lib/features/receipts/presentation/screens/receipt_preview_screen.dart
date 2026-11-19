@@ -41,42 +41,22 @@ class ReceiptPreviewScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             title: Text('Receipt #${receipt.receiptNo}'),
-            actions: [
-              IconButton(
-                tooltip: 'Share via WhatsApp',
-                icon: const Icon(Icons.send_rounded),
-                onPressed: () async {
-                  final shareService = ref.read(receiptShareServiceProvider);
-                  final msg = receipt.formatWhatsAppText();
-                  final launched = await shareService.shareToWhatsApp(
-                    phone: receipt.customerPhone,
-                    message: msg,
-                  );
-                  if (!launched && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Could not open WhatsApp on this device.'),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
           ),
           body: Column(
             children: [
-              // Bottom WhatsApp share bar
+              // Single, prominent WhatsApp Action Bar
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 color: theme.colorScheme.surfaceContainerHighest,
                 child: Row(
                   children: [
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366), // WhatsApp green
+                          backgroundColor: const Color(0xFF25D366), // Official WhatsApp Green
                           foregroundColor: Colors.white,
+                          elevation: 1,
                         ),
                         onPressed: () async {
                           final shareService =
@@ -95,11 +75,12 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                             );
                           }
                         },
-                        icon: const Icon(Icons.chat_bubble_outline),
+                        icon: const Icon(Icons.chat_bubble_rounded),
                         label: Text(
                           receipt.customerPhone != null
                               ? 'Send to ${receipt.customerName} on WhatsApp'
                               : 'Share via WhatsApp',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -107,9 +88,10 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                 ),
               ),
 
-              // Interactive PDF Preview
+              // Interactive High-DPI PDF Preview (Sharp, not blurry)
               Expanded(
                 child: PdfPreview(
+                  dpi: 220, // High-DPI rendering for crisp typography
                   build: (format) async {
                     final renderer = ref.read(receiptRendererProvider);
                     return renderer.renderReceiptPdf(receipt);
@@ -117,17 +99,9 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                   canChangePageFormat: false,
                   canChangeOrientation: false,
                   canDebug: false,
-                  pdfFileName: 'receipt_${receipt.receiptNo}.pdf',
-                  actions: [
-                    PdfPreviewAction(
-                      icon: const Icon(Icons.share_outlined),
-                      onPressed: (ctx, buildFn, pageFormat) async {
-                        final bytes = await buildFn(pageFormat);
-                        final share = ref.read(receiptShareServiceProvider);
-                        await share.shareReceiptPdf(receipt, bytes);
-                      },
-                    ),
-                  ],
+                  allowPrinting: true,
+                  allowSharing: true,
+                  pdfFileName: 'EasyHisab_Receipt_${receipt.receiptNo}.pdf',
                 ),
               ),
             ],

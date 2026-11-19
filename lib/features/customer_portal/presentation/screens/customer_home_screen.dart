@@ -47,39 +47,91 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Phone Link / Search Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: activePhone ?? 'Enter phone (e.g. 03001234567)',
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+            if (activePhone != null) ...[
+              // Secure Verified Customer Account Banner
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.verified_user_rounded,
+                          size: 20, color: Colors.green),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Verified Customer Account',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                          Text(
+                            activePhone,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () =>
+                          context.push('${AppRoutes.phoneLogin}?role=customer'),
+                      icon: const Icon(Icons.switch_account_outlined, size: 16),
+                      label: const Text('Switch', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Fallback for unauthenticated guest / testing
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: 'Enter phone (e.g. 03001234567)',
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filledTonal(
-                    onPressed: _linkPhone,
-                    icon: const Icon(Icons.search_rounded),
-                    tooltip: 'Find Shops',
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      onPressed: _linkPhone,
+                      icon: const Icon(Icons.search_rounded),
+                      tooltip: 'Find Shops',
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
 
             // Main Content
             Expanded(
@@ -119,16 +171,18 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No Connected Shops Yet',
-                              style: theme.textTheme.titleLarge?.copyWith(
+                              activePhone == null
+                                  ? 'No Connected Shops Yet'
+                                  : 'No Khata Records Found',
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               activePhone == null
-                                  ? 'Enter your mobile number above to find your account across local grocery shops.'
-                                  : 'No accounts found for "$activePhone". Ask your shopkeeper to record your phone number on your customer file.',
+                                  ? 'Enter your mobile number above to find stores where you have an active udhar khata.'
+                                  : 'No shops have recorded credit or transactions for $activePhone yet.',
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
@@ -140,124 +194,115 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     );
                   }
 
-                  // Compute aggregate total outstanding
-                  final totalDuePaisa = shops.fold<int>(
-                    0,
-                    (sum, s) => sum + s.balance.paisa,
-                  );
-                  final totalDue = Money.paisa(totalDuePaisa);
-
-                  return ListView(
+                  return ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    children: [
-                      // Total balance header card
-                      Card(
-                        color: totalDuePaisa > 0
-                            ? theme.colorScheme.errorContainer
-                            : theme.colorScheme.primaryContainer,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                totalDuePaisa > 0
-                                    ? 'Total Outstanding Udhar'
-                                    : 'All Accounts Cleared',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: totalDuePaisa > 0
-                                      ? theme.colorScheme.onErrorContainer
-                                      : theme.colorScheme.onPrimaryContainer,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                totalDue.format(),
-                                style:
-                                    theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: totalDuePaisa > 0
-                                      ? theme.colorScheme.onErrorContainer
-                                      : theme.colorScheme.onPrimaryContainer,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Across ${shops.length} linked ${shops.length == 1 ? "shop" : "shops"}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: totalDuePaisa > 0
-                                      ? theme.colorScheme.onErrorContainer
-                                      : theme.colorScheme.onPrimaryContainer,
-                                ),
-                              ),
-                            ],
-                          ),
+                    itemCount: shops.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final item = shops[index];
+                      final isDue = item.balance.paisa > 0;
+                      final isAdvance = item.balance.paisa < 0;
+
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(color: theme.colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Your Shops', style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      for (final shop in shops)
-                        Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.secondaryContainer,
-                              child: Icon(
-                                Icons.store_rounded,
-                                color: theme.colorScheme.onSecondaryContainer,
-                              ),
-                            ),
-                            title: Text(
-                              shop.shopName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            final phoneParam = item.shopPhone != null
+                                ? '&phone=${Uri.encodeComponent(item.shopPhone!)}'
+                                : '';
+                            context.push(
+                              '/customer/shops/${item.shopId}/ledger?customerId=${item.customerId}&shopName=${Uri.encodeComponent(item.shopName)}$phoneParam',
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
                               children: [
-                                if (shop.shopAddress != null &&
-                                    shop.shopAddress!.isNotEmpty)
-                                  Text(shop.shopAddress!),
-                                Text(
-                                  'Registered name: ${shop.customerName}',
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  shop.balance.format(),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: shop.balance.paisa > 0
-                                        ? theme.colorScheme.error
-                                        : Colors.green,
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: theme.colorScheme.primaryContainer,
+                                  child: Icon(
+                                    Icons.storefront_rounded,
+                                    color: theme.colorScheme.onPrimaryContainer,
                                   ),
                                 ),
-                                Text(
-                                  shop.balance.paisa > 0 ? 'Due' : 'Cleared',
-                                  style: theme.textTheme.bodySmall,
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.shopName,
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (item.shopPhone != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.shopPhone!,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Customer: ${item.customerName}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      Money.paisa(item.balance.paisa.abs()).format(),
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: isDue
+                                            ? theme.colorScheme.error
+                                            : isAdvance
+                                                ? Colors.green
+                                                : theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    Text(
+                                      isDue
+                                          ? 'You owe'
+                                          : isAdvance
+                                              ? 'Advance'
+                                              : 'Settled',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: isDue
+                                            ? theme.colorScheme.error
+                                            : isAdvance
+                                                ? Colors.green
+                                                : theme.colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ],
                             ),
-                            onTap: () {
-                              context.push(
-                                '/customer/shops/${shop.shopId}/ledger?customerId=${shop.customerId}&shopName=${Uri.encodeComponent(shop.shopName)}&phone=${shop.shopPhone ?? ""}',
-                              );
-                            },
                           ),
                         ),
-                    ],
+                      );
+                    },
                   );
                 },
               ),

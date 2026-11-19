@@ -62,8 +62,16 @@ class RoleChoiceScreen extends ConsumerWidget {
               _RoleCard(
                 icon: Icons.person_rounded,
                 title: 'I am a Customer',
-                subtitle: 'View your bills and balance at linked shops',
-                onTap: () => context.go(AppRoutes.customerShops),
+                subtitle: user != null
+                    ? 'Check balance for ${user.phoneNumber ?? 'Customer'}'
+                    : 'Requires mobile number login (OTP)',
+                onTap: () {
+                  if (user != null) {
+                    context.go(AppRoutes.customerShops);
+                  } else {
+                    context.push('${AppRoutes.phoneLogin}?role=customer');
+                  }
+                },
               ),
               const SizedBox(height: 24),
               if (user == null) ...[

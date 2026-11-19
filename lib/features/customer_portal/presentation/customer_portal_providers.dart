@@ -15,7 +15,10 @@ final customerPortalRepositoryProvider =
 
 class CustomerPhoneNumberNotifier extends Notifier<String?> {
   @override
-  String? build() => null;
+  String? build() {
+    final authService = ref.watch(authServiceProvider);
+    return authService.currentUser?.phoneNumber;
+  }
 
   void setPhone(String? phone) {
     state = phone;
