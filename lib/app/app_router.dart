@@ -1,6 +1,10 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/role_choice_screen.dart';
+import '../features/auth/presentation/screens/verify_email_screen.dart';
 import '../features/customer_portal/presentation/screens/customer_home_screen.dart';
 import '../features/customers/presentation/screens/add_edit_customer_screen.dart';
 import '../features/customers/presentation/screens/customer_detail_screen.dart';
@@ -18,6 +22,10 @@ import '../features/shop/presentation/screens/shop_setup_screen.dart';
 /// Route paths from the blueprint (section 8.1).
 abstract final class AppRoutes {
   static const chooseRole = '/choose-role';
+  static const login = '/auth/login';
+  static const register = '/auth/register';
+  static const forgotPassword = '/auth/forgot-password';
+  static const verifyEmail = '/auth/verify-email';
   static const shopDashboard = '/shop/dashboard';
   static const shopSetup = '/shop/setup';
   static const shopEdit = '/shop/edit';
@@ -39,6 +47,22 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
       GoRoute(
         path: AppRoutes.chooseRole,
         builder: (context, state) => const RoleChoiceScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.verifyEmail,
+        builder: (context, state) => const VerifyEmailScreen(),
       ),
       GoRoute(
         path: AppRoutes.shopDashboard,

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/dependency_providers.dart';
 import '../../../core/contracts/active_shop_context.dart';
-import '../../../core/contracts/auth_context_port.dart';
 import '../application/create_shop.dart';
 import '../application/get_active_shop.dart';
 import '../application/update_shop.dart';
@@ -10,10 +9,8 @@ import '../data/sqlite_shop_repository.dart';
 import '../domain/shop.dart';
 import '../domain/shop_repository.dart';
 
-/// Provides the auth context. Defaults to local-only until module 08.
-final authContextProvider = Provider<AuthContextPort>(
-  (ref) => const LocalOnlyAuthContext(),
-);
+import '../../auth/presentation/auth_providers.dart';
+export '../../auth/presentation/auth_providers.dart' show authContextProvider;
 
 /// Concrete ShopRepository backed by SQLite.
 final shopRepositoryProvider = Provider<ShopRepository>((ref) {

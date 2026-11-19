@@ -24,6 +24,11 @@ final class PermissionFailure extends AppFailure {
   const PermissionFailure(super.message);
 }
 
+/// Authentication or credential failure.
+final class AuthFailure extends AppFailure {
+  const AuthFailure(super.message);
+}
+
 /// Local storage failed (disk, migration, constraint, ...).
 final class StorageFailure extends AppFailure {
   const StorageFailure(super.message, [this.cause]);
