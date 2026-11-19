@@ -325,15 +325,8 @@ class _SaleDetailScreenState extends ConsumerState<SaleDetailScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'PDF receipts & sharing (Module 07) next',
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: () =>
+                          context.push('/shop/sales/${sale.id}/receipt'),
                       icon: const Icon(Icons.share_outlined),
                       label: const Text('Share Receipt'),
                     ),
