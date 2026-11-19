@@ -6,6 +6,7 @@ import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/role_choice_screen.dart';
 import '../features/auth/presentation/screens/verify_email_screen.dart';
 import '../features/customer_portal/presentation/screens/customer_home_screen.dart';
+import '../features/customer_portal/presentation/screens/customer_shop_ledger_screen.dart';
 import '../features/customers/presentation/screens/add_edit_customer_screen.dart';
 import '../features/customers/presentation/screens/customer_detail_screen.dart';
 import '../features/customers/presentation/screens/customer_list_screen.dart';
@@ -137,6 +138,15 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
       GoRoute(
         path: AppRoutes.customerShops,
         builder: (context, state) => const CustomerHomeScreen(),
+      ),
+      GoRoute(
+        path: '/customer/shops/:shopId/ledger',
+        builder: (context, state) => CustomerShopLedgerScreen(
+          shopId: state.pathParameters['shopId']!,
+          customerId: state.uri.queryParameters['customerId'] ?? '',
+          shopName: state.uri.queryParameters['shopName'] ?? 'Shop Ledger',
+          shopPhone: state.uri.queryParameters['phone'],
+        ),
       ),
     ],
   );

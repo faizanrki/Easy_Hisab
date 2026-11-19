@@ -44,6 +44,8 @@ void main() {
     await tester.tap(find.byTooltip('Switch Role'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('I am a Customer'));
+    await tester.pump();
+    await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
     await tester.pumpAndSettle();
     expect(find.text('My Shops'), findsOneWidget);
     expect(find.byType(AppBar), findsOneWidget);
