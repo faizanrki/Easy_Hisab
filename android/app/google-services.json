@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "80143681231",
+    "project_id": "easy-hisab-21aa8",
+    "storage_bucket": "easy-hisab-21aa8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:80143681231:android:3788919420edf0e7bb99ba",
+        "android_client_info": {
+          "package_name": "com.easyhisab.easy_hisab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUPGTIukyT9o9FupZ8xw9s6n4yLW-tMYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
