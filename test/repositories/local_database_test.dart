@@ -54,6 +54,7 @@ void main() {
       'users', 'shops', 'shop_members', 'customers', 'products', 'sales',
       'sale_items', 'payments', 'payment_allocations', 'customer_links',
       'reminders', 'sync_queue', 'backup_history', 'audit_log',
+      'app_settings',
     });
   });
 

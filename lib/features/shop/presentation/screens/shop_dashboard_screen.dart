@@ -1,38 +1,95 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/app_router.dart';
+import '../../domain/shop.dart';
+import '../shop_providers.dart';
 
-/// Shopkeeper home. Placeholder until modules 02-06 (shop setup, customers,
-/// products, sales, payments) are implemented.
-class ShopDashboardScreen extends StatelessWidget {
+class ShopDashboardScreen extends ConsumerWidget {
   const ShopDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeShopAsync = ref.watch(activeShopProvider);
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Shop'),
+        title: activeShopAsync.maybeWhen(
+          data: (shop) => Text(shop?.name ?? 'Shop Dashboard'),
+          orElse: () => const Text('Shop Dashboard'),
+        ),
         leading: IconButton(
-          tooltip: 'Change role',
+          tooltip: 'Switch Role',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.chooseRole),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Shop Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              final shop = activeShopAsync.value;
+              if (shop != null) {
+                context.push(AppRoutes.shopEdit);
+              }
+            },
+          ),
+        ],
       ),
-      body: const _ComingSoon(
-        icon: Icons.storefront_rounded,
-        message: 'Set up your shop to start recording udhar.\n'
-            '(Shop setup arrives in the next module.)',
+      body: activeShopAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline,
+                    size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 12),
+                Text('Failed to load shop: $err', textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () =>
+                      ref.read(activeShopProvider.notifier).reload(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        data: (shop) {
+          if (shop == null) {
+            return _EmptyShopView(
+              onSetup: () => context.go(AppRoutes.shopSetup),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => ref.read(activeShopProvider.notifier).reload(),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _ShopHeaderCard(shop: shop),
+                const SizedBox(height: 16),
+                _QuickActionsGrid(),
+                const SizedBox(height: 16),
+                _RecentActivityPlaceholder(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.icon, required this.message});
+class _EmptyShopView extends StatelessWidget {
+  const _EmptyShopView({required this.onSetup});
 
-  final IconData icon;
-  final String message;
+  final VoidCallback onSetup;
 
   @override
   Widget build(BuildContext context) {
@@ -43,11 +100,277 @@ class _ComingSoon extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: theme.colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              child: Icon(
+                Icons.storefront_rounded,
+                size: 42,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No Shop Configured Yet',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Set up your grocery shop name and contact details to begin keeping track of customer udhar.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onSetup,
+              icon: const Icon(Icons.add_business_rounded),
+              label: const Text('Set Up Shop Now'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopHeaderCard extends StatelessWidget {
+  const _ShopHeaderCard({required this.shop});
+
+  final Shop shop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    shop.name,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Edit Profile',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => context.push(AppRoutes.shopEdit),
+                ),
+              ],
+            ),
+            if (shop.contactPhone != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.phone_outlined,
+                      size: 16, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Text(shop.contactPhone!, style: theme.textTheme.bodyMedium),
+                ],
+              ),
+            ],
+            if (shop.address != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined,
+                      size: 16, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      shop.address!,
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 10),
+            Chip(
+              avatar: const Icon(Icons.info_outline, size: 16),
+              label: Text(
+                shop.businessVerification == BusinessVerification.unverified
+                    ? 'Local store (unverified)'
+                    : 'Verified store',
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionsGrid extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.people_alt_outlined,
+                label: 'Customers',
+                subtitle: 'Manage khata',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Customer management (Module 03) next'),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.inventory_2_outlined,
+                label: 'Products',
+                subtitle: 'Grocery catalog',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Product catalog (Module 04) next'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.point_of_sale_rounded,
+                label: 'New Bill',
+                subtitle: 'Credit / Paid sale',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Credit sales (Module 05) next'),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionTile(
+                icon: Icons.payments_outlined,
+                label: 'Receive Money',
+                subtitle: 'Record repayment',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Repayments (Module 06) next'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                child: Icon(icon,
+                    size: 22, color: theme.colorScheme.onPrimaryContainer),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentActivityPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ledger Overview',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'No bills or payments recorded yet. After adding customers and sales, your daily udhar summary and recent activity will appear here.',
+              style: TextStyle(color: Colors.black54),
+            ),
           ],
         ),
       ),

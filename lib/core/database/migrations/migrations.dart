@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import 'migration_001.dart';
+import 'migration_002.dart';
 
 typedef Migration = Future<void> Function(DatabaseExecutor db);
 
@@ -9,6 +10,7 @@ typedef Migration = Future<void> Function(DatabaseExecutor db);
 /// Never edit a migration that has shipped; append a new one instead.
 const List<Migration> migrations = [
   migration001,
+  migration002,
 ];
 
 int get latestSchemaVersion => migrations.length;
