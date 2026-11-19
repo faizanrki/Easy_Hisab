@@ -234,13 +234,7 @@ class _QuickActionsGrid extends StatelessWidget {
                 icon: Icons.people_alt_outlined,
                 label: 'Customers',
                 subtitle: 'Manage khata',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Customer management (Module 03) next'),
-                    ),
-                  );
-                },
+                onTap: () => context.push(AppRoutes.customerList),
               ),
             ),
             const SizedBox(width: 12),

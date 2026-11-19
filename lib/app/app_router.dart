@@ -2,6 +2,9 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/screens/role_choice_screen.dart';
 import '../features/customer_portal/presentation/screens/customer_home_screen.dart';
+import '../features/customers/presentation/screens/add_edit_customer_screen.dart';
+import '../features/customers/presentation/screens/customer_detail_screen.dart';
+import '../features/customers/presentation/screens/customer_list_screen.dart';
 import '../features/shop/presentation/screens/shop_dashboard_screen.dart';
 import '../features/shop/presentation/screens/shop_edit_screen.dart';
 import '../features/shop/presentation/screens/shop_setup_screen.dart';
@@ -12,6 +15,8 @@ abstract final class AppRoutes {
   static const shopDashboard = '/shop/dashboard';
   static const shopSetup = '/shop/setup';
   static const shopEdit = '/shop/edit';
+  static const customerList = '/shop/customers';
+  static const customerNew = '/shop/customers/new';
   static const customerShops = '/customer/shops';
 }
 
@@ -36,6 +41,26 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
       GoRoute(
         path: AppRoutes.shopEdit,
         builder: (context, state) => const ShopEditScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.customerList,
+        builder: (context, state) => const CustomerListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.customerNew,
+        builder: (context, state) => const AddEditCustomerScreen(),
+      ),
+      GoRoute(
+        path: '/shop/customers/:id',
+        builder: (context, state) => CustomerDetailScreen(
+          customerId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/shop/customers/:id/edit',
+        builder: (context, state) => AddEditCustomerScreen(
+          customerId: state.pathParameters['id']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.customerShops,
