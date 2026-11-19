@@ -1,6 +1,9 @@
 import 'package:easy_hisab/app/dependency_providers.dart';
 import 'package:easy_hisab/app/easy_hisab_app.dart';
 import 'package:easy_hisab/core/database/local_database.dart';
+import 'package:easy_hisab/features/auth/data/in_memory_auth_service.dart';
+import 'package:easy_hisab/features/auth/domain/auth_user.dart';
+import 'package:easy_hisab/features/auth/presentation/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +26,16 @@ void main() {
     return ProviderScope(
       overrides: [
         localDatabaseProvider.overrideWithValue(db),
+        authServiceProvider.overrideWithValue(
+          InMemoryAuthService(
+            initialUser: const AuthUser(
+              uid: 'test_shopkeeper',
+              phoneNumber: '+923001234567',
+              displayName: 'Test Shopkeeper',
+              isEmailVerified: true,
+            ),
+          ),
+        ),
       ],
       child: const EasyHisabApp(),
     );
