@@ -265,13 +265,7 @@ class _QuickActionsGrid extends StatelessWidget {
                 icon: Icons.payments_outlined,
                 label: 'Receive Money',
                 subtitle: 'Record repayment',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Repayments (Module 06) next'),
-                    ),
-                  );
-                },
+                onTap: () => context.push(AppRoutes.paymentNew),
               ),
             ),
           ],

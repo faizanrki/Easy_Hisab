@@ -5,6 +5,7 @@ import '../features/customer_portal/presentation/screens/customer_home_screen.da
 import '../features/customers/presentation/screens/add_edit_customer_screen.dart';
 import '../features/customers/presentation/screens/customer_detail_screen.dart';
 import '../features/customers/presentation/screens/customer_list_screen.dart';
+import '../features/payments/presentation/screens/record_payment_screen.dart';
 import '../features/products/presentation/screens/add_edit_product_screen.dart';
 import '../features/products/presentation/screens/product_list_screen.dart';
 import '../features/sales/presentation/screens/new_sale_screen.dart';
@@ -24,6 +25,7 @@ abstract final class AppRoutes {
   static const productList = '/shop/products';
   static const productNew = '/shop/products/new';
   static const saleNew = '/shop/sales/new';
+  static const paymentNew = '/shop/payments/new';
   static const customerShops = '/customer/shops';
 }
 
@@ -93,6 +95,12 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
         path: '/shop/sales/:id',
         builder: (context, state) => SaleDetailScreen(
           saleId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.paymentNew,
+        builder: (context, state) => RecordPaymentScreen(
+          initialCustomerId: state.uri.queryParameters['customerId'],
         ),
       ),
       GoRoute(
