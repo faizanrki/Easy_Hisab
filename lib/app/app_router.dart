@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/analytics/presentation/screens/analytics_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../features/backup/presentation/screens/backup_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/role_choice_screen.dart';
@@ -38,6 +39,7 @@ abstract final class AppRoutes {
   static const saleNew = '/shop/sales/new';
   static const paymentNew = '/shop/payments/new';
   static const analytics = '/shop/analytics';
+  static const backup = '/shop/backup';
   static const customerShops = '/customer/shops';
 }
 
@@ -140,6 +142,10 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
       GoRoute(
         path: AppRoutes.analytics,
         builder: (context, state) => const AnalyticsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.backup,
+        builder: (context, state) => const BackupScreen(),
       ),
       GoRoute(
         path: AppRoutes.customerShops,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/app_router.dart';
 import '../../../../core/domain/app_failure.dart';
 import '../../../../core/domain/phone_number.dart';
 import '../../domain/shop.dart';
@@ -176,6 +177,14 @@ class _ShopEditScreenState extends ConsumerState<ShopEditScreen> {
                               ),
                             )
                           : const Text('Save Changes'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push(AppRoutes.backup),
+                      icon: const Icon(Icons.backup_outlined),
+                      label: const Text('Database Backup & Safety'),
                     ),
                   ],
                 ),
