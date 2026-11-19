@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/app_router.dart';
+import '../../../sync/domain/sync_operation.dart';
+import '../../../sync/presentation/sync_providers.dart';
 import '../../domain/shop.dart';
 import '../shop_providers.dart';
 
@@ -26,6 +28,42 @@ class ShopDashboardScreen extends ConsumerWidget {
           onPressed: () => context.go(AppRoutes.chooseRole),
         ),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final syncState = ref.watch(syncStatusProvider);
+              final pendingCount = ref.watch(pendingSyncCountProvider).value ?? 0;
+              final shop = activeShopAsync.value;
+
+              return IconButton(
+                tooltip: syncState == SyncState.syncing
+                    ? 'Syncing...'
+                    : pendingCount > 0
+                        ? '$pendingCount pending changes. Tap to sync.'
+                        : 'Cloud Synced',
+                icon: syncState == SyncState.syncing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(
+                        pendingCount > 0
+                            ? Icons.sync_problem_rounded
+                            : Icons.cloud_done_outlined,
+                      ),
+                onPressed: shop != null && syncState != SyncState.syncing
+                    ? () async {
+                        await ref
+                            .read(syncStatusProvider.notifier)
+                            .triggerSync(shop.id);
+                      }
+                    : null,
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Shop Settings',
             icon: const Icon(Icons.settings_outlined),
