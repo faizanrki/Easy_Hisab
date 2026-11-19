@@ -8,6 +8,7 @@ import 'money.dart';
 final class Quantity implements Comparable<Quantity> {
   const Quantity.milli(this.milli);
   const Quantity.whole(int units) : milli = units * scale;
+  factory Quantity.units(num val) => Quantity.milli((val * scale).round());
 
   static const int scale = 1000;
 

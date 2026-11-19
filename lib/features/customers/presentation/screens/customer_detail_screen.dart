@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/app_router.dart';
 import '../../../shop/shop_public.dart';
 import '../../domain/customer.dart';
 import '../customer_providers.dart';
@@ -211,15 +212,9 @@ class CustomerDetailScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Billing & sales module (Module 05) next',
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: () => context.push(
+                        '${AppRoutes.saleNew}?customerId=${customer.id}',
+                      ),
                       icon: const Icon(Icons.point_of_sale_rounded),
                       label: const Text('New Bill'),
                     ),

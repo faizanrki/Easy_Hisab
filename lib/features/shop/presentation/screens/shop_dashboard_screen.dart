@@ -256,13 +256,7 @@ class _QuickActionsGrid extends StatelessWidget {
                 icon: Icons.point_of_sale_rounded,
                 label: 'New Bill',
                 subtitle: 'Credit / Paid sale',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Credit sales (Module 05) next'),
-                    ),
-                  );
-                },
+                onTap: () => context.push(AppRoutes.saleNew),
               ),
             ),
             const SizedBox(width: 12),
