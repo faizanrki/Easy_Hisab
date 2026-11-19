@@ -65,3 +65,13 @@ final sendVerificationEmailUseCaseProvider = Provider<SendEmailVerification>((re
   final authService = ref.watch(authServiceProvider);
   return SendEmailVerification(authService);
 });
+
+final sendPhoneOtpUseCaseProvider = Provider<SendPhoneOtp>((ref) {
+  final authService = ref.watch(authServiceProvider);
+  return SendPhoneOtp(authService);
+});
+
+final verifyPhoneOtpUseCaseProvider = Provider<VerifyPhoneOtp>((ref) {
+  final authService = ref.watch(authServiceProvider);
+  return VerifyPhoneOtp(authService);
+});

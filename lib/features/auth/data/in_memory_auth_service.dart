@@ -14,6 +14,7 @@ final class InMemoryAuthService implements AuthServicePort {
   }
 
   final Map<String, _StoredAccount> _users = {};
+  final Map<String, String> _pendingOtps = {};
   final StreamController<AuthUser?> _controller =
       StreamController<AuthUser?>.broadcast();
   AuthUser? _currentUser;
@@ -65,6 +66,46 @@ final class InMemoryAuthService implements AuthServicePort {
       uid: 'google_user_${DateTime.now().millisecondsSinceEpoch}',
       email: 'test.shopkeeper@gmail.com',
       displayName: 'Google Shopkeeper',
+      isEmailVerified: true,
+    );
+    _currentUser = user;
+    _controller.add(_currentUser);
+    return user;
+  }
+
+  @override
+  Future<void> sendPhoneOtp({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String error) onFailed,
+  }) async {
+    final cleanPhone = phoneNumber.replaceAll(' ', '').trim();
+    if (cleanPhone.length < 10) {
+      onFailed('Please enter a valid phone number (e.g. +923001234567)');
+      return;
+    }
+    final vid = 'mock_vid_${DateTime.now().millisecondsSinceEpoch}';
+    _pendingOtps[vid] = cleanPhone;
+    onCodeSent(vid);
+  }
+
+  @override
+  Future<AuthUser> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final phone = _pendingOtps[verificationId];
+    if (phone == null) {
+      throw const ValidationFailure(
+          'Session expired. Please request a new OTP.');
+    }
+    if (smsCode.trim() != '123456') {
+      throw const ValidationFailure('Invalid verification code.');
+    }
+    final user = AuthUser(
+      uid: 'phone_user_${phone.replaceAll('+', '')}',
+      phoneNumber: phone,
+      displayName: 'User ($phone)',
       isEmailVerified: true,
     );
     _currentUser = user;

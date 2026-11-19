@@ -53,10 +53,16 @@ class RoleChoiceScreen extends StatelessWidget {
                 onTap: () => context.go(AppRoutes.customerShops),
               ),
               const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => context.push(AppRoutes.phoneLogin),
+                icon: const Icon(Icons.phone_android_rounded),
+                label: const Text('Login with Mobile Number (OTP)'),
+              ),
+              const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => context.push(AppRoutes.login),
-                icon: const Icon(Icons.cloud_sync_outlined),
-                label: const Text('Sign In / Cloud Account'),
+                icon: const Icon(Icons.email_outlined),
+                label: const Text('Sign In with Email'),
               ),
               const SizedBox(height: 16),
             ],

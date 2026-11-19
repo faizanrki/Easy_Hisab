@@ -73,11 +73,11 @@ void main() {
       );
       await settleAsync(tester);
 
-      // Verify Role Choice Screen has Cloud Account button
-      expect(find.text('Sign In / Cloud Account'), findsOneWidget);
+      // Verify Role Choice Screen has Sign In with Email button
+      expect(find.text('Sign In with Email'), findsOneWidget);
 
-      // Tap Sign In / Cloud Account
-      await tester.tap(find.text('Sign In / Cloud Account'));
+      // Tap Sign In with Email
+      await tester.tap(find.text('Sign In with Email'));
       await settleAsync(tester);
 
       // Verify on Login Screen
@@ -152,6 +152,59 @@ void main() {
       // Assert user registered and signed in
       expect(inMemoryAuth.currentUser?.email, 'bilal@store.pk');
       expect(inMemoryAuth.currentUser?.displayName, 'Bilal Store');
+    });
+
+    testWidgets('navigate from RoleChoice to Phone Login, send OTP and verify', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localDatabaseProvider.overrideWithValue(db),
+            authServiceProvider.overrideWithValue(inMemoryAuth),
+          ],
+          child: const EasyHisabApp(initialLocation: AppRoutes.chooseRole),
+        ),
+      );
+      await settleAsync(tester);
+
+      // Verify Role Choice Screen has Login with Mobile Number (OTP)
+      expect(find.text('Login with Mobile Number (OTP)'), findsOneWidget);
+
+      // Tap Login with Mobile Number
+      await tester.tap(find.text('Login with Mobile Number (OTP)'));
+      await settleAsync(tester);
+
+      // Verify on Phone Login Screen
+      expect(find.text('Phone Number Login'), findsOneWidget);
+      expect(find.byKey(const Key('phone_number_field')), findsOneWidget);
+
+      // Enter Pakistani phone number
+      await tester.enterText(
+        find.byKey(const Key('phone_number_field')),
+        '03001234567',
+      );
+      await tester.pump();
+
+      // Tap Send OTP Code
+      await tester.tap(find.byKey(const Key('send_otp_button')));
+      await settleAsync(tester);
+
+      // Verify OTP entry step is shown
+      expect(find.text('Enter SMS Code'), findsOneWidget);
+      expect(find.byKey(const Key('otp_code_field')), findsOneWidget);
+
+      // Enter 6-digit OTP code
+      await tester.enterText(
+        find.byKey(const Key('otp_code_field')),
+        '123456',
+      );
+      await tester.pump();
+
+      // Tap Verify & Continue
+      await tester.tap(find.byKey(const Key('verify_otp_button')));
+      await settleAsync(tester);
+
+      // Assert user is authenticated with phone
+      expect(inMemoryAuth.currentUser?.phoneNumber, '+923001234567');
     });
   });
 }

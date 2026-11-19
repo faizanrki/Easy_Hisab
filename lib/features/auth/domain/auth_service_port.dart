@@ -14,6 +14,19 @@ abstract interface class AuthServicePort {
   /// Signs in using Google OAuth provider.
   Future<AuthUser> signInWithGoogle();
 
+  /// Triggers SMS OTP to the given phone number in E.164 format (e.g. +923001234567).
+  Future<void> sendPhoneOtp({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String error) onFailed,
+  });
+
+  /// Verifies the 6-digit SMS code against the verification ID.
+  Future<AuthUser> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  });
+
   /// Sends email verification link to current user.
   Future<void> sendEmailVerification();
 

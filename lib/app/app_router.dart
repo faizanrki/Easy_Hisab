@@ -4,6 +4,7 @@ import '../features/analytics/presentation/screens/analytics_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/backup/presentation/screens/backup_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/phone_login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/role_choice_screen.dart';
 import '../features/auth/presentation/screens/verify_email_screen.dart';
@@ -26,6 +27,7 @@ import '../features/shop/presentation/screens/shop_setup_screen.dart';
 abstract final class AppRoutes {
   static const chooseRole = '/choose-role';
   static const login = '/auth/login';
+  static const phoneLogin = '/auth/phone-login';
   static const register = '/auth/register';
   static const forgotPassword = '/auth/forgot-password';
   static const verifyEmail = '/auth/verify-email';
@@ -56,6 +58,13 @@ GoRouter createRouter({String initialLocation = AppRoutes.chooseRole}) {
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.phoneLogin,
+        builder: (context, state) {
+          final isCustomer = state.uri.queryParameters['role'] == 'customer';
+          return PhoneLoginScreen(isCustomer: isCustomer);
+        },
       ),
       GoRoute(
         path: AppRoutes.register,

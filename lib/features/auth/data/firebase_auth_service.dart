@@ -86,6 +86,54 @@ final class FirebaseAuthService implements AuthServicePort {
   }
 
   @override
+  Future<void> sendPhoneOtp({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String error) onFailed,
+  }) async {
+    try {
+      await _firebaseAuth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (fb.PhoneAuthCredential credential) async {
+          await _firebaseAuth.signInWithCredential(credential);
+        },
+        verificationFailed: (fb.FirebaseAuthException e) {
+          onFailed(e.message ?? 'Phone verification failed');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          onCodeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+        timeout: const Duration(seconds: 60),
+      );
+    } on fb.FirebaseAuthException catch (e) {
+      onFailed(e.message ?? 'Failed to send SMS code');
+    } catch (e) {
+      onFailed(e.toString());
+    }
+  }
+
+  @override
+  Future<AuthUser> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    try {
+      final credential = fb.PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      final cred = await _firebaseAuth.signInWithCredential(credential);
+      if (cred.user == null) {
+        throw const NotFoundFailure('Phone authentication failed');
+      }
+      return _mapFirebaseUser(cred.user!);
+    } on fb.FirebaseAuthException catch (e) {
+      throw _mapFirebaseAuthException(e);
+    }
+  }
+
+  @override
   Future<void> sendEmailVerification() async {
     final user = _firebaseAuth.currentUser;
     if (user != null && !user.emailVerified) {

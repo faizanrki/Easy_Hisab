@@ -220,6 +220,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text('Sign In'),
                 ),
                 const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: _isLoading
+                      ? null
+                      : () => context.push(AppRoutes.phoneLogin),
+                  icon: const Icon(Icons.phone_android_rounded),
+                  label: const Text('Login with Mobile Number (OTP)'),
+                ),
+                const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _handleGoogleLogin,
                   icon: const Icon(Icons.g_mobiledata_rounded, size: 26),

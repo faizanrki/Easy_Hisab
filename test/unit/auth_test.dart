@@ -132,5 +132,47 @@ void main() {
       expect(user.email, contains('@gmail.com'));
       expect(authService.currentUser, isNotNull);
     });
+
+    test('sendPhoneOtp and verifyPhoneOtp succeeds with valid code', () async {
+      final sendOtp = SendPhoneOtp(authService);
+      final verifyOtp = VerifyPhoneOtp(authService);
+
+      String? sentVerificationId;
+      await sendOtp.execute(
+        phoneNumber: '+923001234567',
+        onCodeSent: (vid) => sentVerificationId = vid,
+        onFailed: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(sentVerificationId, isNotNull);
+
+      final user = await verifyOtp.execute(
+        verificationId: sentVerificationId!,
+        smsCode: '123456',
+      );
+
+      expect(user.phoneNumber, '+923001234567');
+      expect(authService.currentUser?.phoneNumber, '+923001234567');
+    });
+
+    test('verifyPhoneOtp fails with invalid code', () async {
+      final sendOtp = SendPhoneOtp(authService);
+      final verifyOtp = VerifyPhoneOtp(authService);
+
+      String? sentVerificationId;
+      await sendOtp.execute(
+        phoneNumber: '+923001234567',
+        onCodeSent: (vid) => sentVerificationId = vid,
+        onFailed: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(
+        () => verifyOtp.execute(
+          verificationId: sentVerificationId!,
+          smsCode: '000000',
+        ),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
   });
 }
