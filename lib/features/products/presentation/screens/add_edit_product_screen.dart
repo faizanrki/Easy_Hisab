@@ -284,7 +284,23 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                   decoration: InputDecoration(
                     labelText: 'Unit Price (Rupees) *',
                     hintText: 'e.g. 150 or 150.50',
-                    prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Rs',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     suffixText: 'per $_selectedUnit',
                   ),
                   validator: (val) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -258,29 +259,124 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   Future<void> _handleBackupTapRestore(String formattedDate) async {
-    final confirmed = await showDialog<bool>(
+    final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Restore Backup?'),
         content: Text(
-          'Restore your store data from Google Drive backup (created $formattedDate)?\n\nAll shops, customers, products, and udhar records will be restored automatically.',
+          'Choose how you want to restore your store data (snapshot from $formattedDate):',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'json'),
+            icon: const Icon(Icons.code_rounded, size: 18),
+            label: const Text('Local JSON'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'drive'),
+            icon: const Icon(Icons.cloud_download_rounded, size: 18),
+            label: const Text('Google Drive'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == 'drive') {
+      await _executeDriveRestore();
+    } else if (choice == 'json') {
+      await _showLocalJsonRestoreDialog();
+    }
+  }
+
+  Future<void> _showLocalJsonRestoreDialog() async {
+    final textController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore from Local JSON'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Paste the EasyHisab backup JSON snapshot below. All current records will be restored to the snapshot state.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'Paste backup JSON here...',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.paste_rounded),
+                    tooltip: 'Paste from Clipboard',
+                    onPressed: () async {
+                      final data = await Clipboard.getData('text/plain');
+                      if (data?.text != null) {
+                        textController.text = data!.text!;
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          FilledButton.icon(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.cloud_download_rounded, size: 18),
-            label: const Text('Restore from Drive'),
+            child: const Text('Restore Now'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      await _executeDriveRestore();
+    if (confirmed == true && textController.text.trim().isNotEmpty) {
+      setState(() => _isRestoring = true);
+      try {
+        await ref
+            .read(backupHistoryProvider.notifier)
+            .restoreBackup(textController.text.trim());
+
+        ref.invalidate(activeShopProvider);
+        ref.invalidate(customerListProvider);
+        ref.invalidate(productListProvider);
+        ref.invalidate(recentSalesProvider);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Database restored successfully from JSON backup!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Restore failed: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isRestoring = false);
+        }
+      }
     }
   }
 
@@ -507,7 +603,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed:
-                          _isRestoring ? null : _handleRestoreFromDrive,
+                          _isRestoring ? null : _showLocalJsonRestoreDialog,
                       icon: _isRestoring
                           ? const SizedBox(
                               width: 18,
@@ -515,7 +611,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.restore_rounded, size: 18),
-                      label: const Text('Restore Backup'),
+                      label: const Text('Restore JSON'),
                     ),
                   ),
                 ],
