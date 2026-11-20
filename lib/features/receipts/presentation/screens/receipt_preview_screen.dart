@@ -127,7 +127,7 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                   canChangeOrientation: false,
                   canDebug: false,
                   allowPrinting: true,
-                  allowSharing: false,
+                  allowSharing: true,
                   pdfFileName: 'EasyHisab_Receipt_${receipt.receiptNo}.pdf',
                 ),
               ),

@@ -93,6 +93,6 @@ void main() {
     expect(find.text('Madina Super Store'), findsAtLeastNWidgets(1));
     expect(find.text('+923001234567'), findsOneWidget);
     expect(find.text('Chowk Yadgar, Peshawar'), findsOneWidget);
-    expect(find.text('Local store (unverified)'), findsOneWidget);
+    expect(find.text('Active Store'), findsOneWidget);
   });
 }

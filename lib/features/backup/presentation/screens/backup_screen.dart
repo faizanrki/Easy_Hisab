@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -258,112 +257,74 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     }
   }
 
-  Future<void> _showRestoreDialog() async {
-    final textController = TextEditingController();
-
+  Future<void> _handleBackupTapRestore(String formattedDate) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Restore Database Backup'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Paste the EasyHisab backup JSON snapshot below. All current records will be safely restored to the snapshot state.',
-                style: TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: textController,
-                maxLines: 6,
-                decoration: InputDecoration(
-                  hintText: 'Paste backup JSON here...',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.paste_rounded),
-                    tooltip: 'Paste from Clipboard',
-                    onPressed: () async {
-                      final data = await Clipboard.getData('text/plain');
-                      if (data?.text != null) {
-                        textController.text = data!.text!;
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Colors.amber, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Restoring will update existing store data with the backup contents.',
-                        style: TextStyle(fontSize: 11, color: Colors.black87),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        title: const Text('Restore Backup?'),
+        content: Text(
+          'Restore your store data from Google Drive backup (created $formattedDate)?\n\nAll shops, customers, products, and udhar records will be restored automatically.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Restore Now'),
+            icon: const Icon(Icons.cloud_download_rounded, size: 18),
+            label: const Text('Restore from Drive'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true && textController.text.trim().isNotEmpty) {
-      setState(() => _isRestoring = true);
-      try {
-        await ref
-            .read(backupHistoryProvider.notifier)
-            .restoreBackup(textController.text.trim());
+    if (confirmed == true) {
+      await _executeDriveRestore();
+    }
+  }
 
-        ref.invalidate(activeShopProvider);
-        ref.invalidate(customerListProvider);
-        ref.invalidate(productListProvider);
-        ref.invalidate(recentSalesProvider);
+  Future<void> _executeDriveRestore() async {
+    setState(() {
+      _isDriveBusy = true;
+      _isRestoring = true;
+    });
+    try {
+      final auth = await _driveService.connectAndAuthorize(interactive: true);
+      final jsonString =
+          await _driveService.downloadLatestBackup(auth.headers);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Database restored successfully from backup!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Restore failed: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isRestoring = false);
-        }
+      await ref.read(backupHistoryProvider.notifier).restoreBackup(jsonString);
+
+      ref.invalidate(activeShopProvider);
+      ref.invalidate(customerListProvider);
+      ref.invalidate(productListProvider);
+      ref.invalidate(recentSalesProvider);
+
+      if (mounted) {
+        setState(() => _googleDriveAccount = auth.email);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data automatically restored from Google Drive!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Drive restore failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDriveBusy = false;
+          _isRestoring = false;
+        });
       }
     }
   }
@@ -545,7 +506,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: _isRestoring ? null : _showRestoreDialog,
+                      onPressed:
+                          _isRestoring ? null : _handleRestoreFromDrive,
                       icon: _isRestoring
                           ? const SizedBox(
                               width: 18,
@@ -609,6 +571,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         final isRestored = record.result == 'restored';
 
                         return ListTile(
+                          onTap: isRestored || _isRestoring
+                              ? null
+                              : () => _handleBackupTapRestore(formattedDate),
                           leading: CircleAvatar(
                             backgroundColor: isRestored
                                 ? Colors.blue.shade100
@@ -635,7 +600,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                           subtitle: Text(
                             isRestored
                                 ? 'Database Restored from Snapshot'
-                                : 'Schema v${record.schemaVersion} • SHA: $shaShort',
+                                : 'Tap to restore • Schema v${record.schemaVersion} • SHA: $shaShort',
                           ),
                           trailing: isRestored
                               ? null

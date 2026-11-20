@@ -50,14 +50,24 @@ class ShopDashboardScreen extends ConsumerWidget {
                       )
                     : Icon(
                         pendingCount > 0
-                            ? Icons.sync_problem_rounded
+                            ? Icons.cloud_upload_rounded
                             : Icons.cloud_done_rounded,
                       ),
                 onPressed: shop != null && syncState != SyncState.syncing
                     ? () async {
-                        await ref
-                            .read(syncStatusProvider.notifier)
-                            .triggerSync(shop.id);
+                        try {
+                          await ref
+                              .read(syncStatusProvider.notifier)
+                              .triggerSync(shop.id);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Sync paused (offline): $e'),
+                              ),
+                            );
+                          }
+                        }
                       }
                     : null,
               );
@@ -286,74 +296,149 @@ class _ShopHeaderCard extends StatelessWidget {
 
   final Shop shop;
 
+  String get _shopCode {
+    final clean = shop.id.replaceAll('-', '').toUpperCase();
+    final suffix = clean.length >= 6 ? clean.substring(0, 6) : clean.padRight(6, '0');
+    return 'SHOP-$suffix';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(Icons.storefront_rounded,
-                      color: theme.colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        shop.name,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        shop.contactPhone ?? 'No phone recorded',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (shop.address != null && shop.address!.isNotEmpty)
-                        Text(
-                          shop.address!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Edit Profile',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => context.push(AppRoutes.shopEdit),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Chip(
-              avatar: const Icon(Icons.info_outline, size: 16),
-              label: Text(
-                shop.businessVerification == BusinessVerification.unverified
-                    ? 'Local store (unverified)'
-                    : 'Verified store',
-              ),
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00695C), Color(0xFF004D40)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00695C).withValues(alpha: 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shop.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      shop.contactPhone ?? 'Digital Udhar Khata',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.85),
+                      ),
+                    ),
+                    if (shop.address != null && shop.address!.isNotEmpty)
+                      Text(
+                        shop.address!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit Profile',
+                icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                onPressed: () => context.push(AppRoutes.shopEdit),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.qr_code_rounded,
+                        size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Shop ID: $_shopCode',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      shop.businessVerification ==
+                              BusinessVerification.unverified
+                          ? Icons.verified_user_outlined
+                          : Icons.verified_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      shop.businessVerification ==
+                              BusinessVerification.unverified
+                          ? 'Active Store'
+                          : 'Verified Store',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
