@@ -65,7 +65,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
     await tester.pumpAndSettle();
-    expect(find.text('My Shops'), findsOneWidget);
+    expect(find.text('Customer Hisaab Portal'), findsOneWidget);
     expect(find.byType(AppBar), findsOneWidget);
   });
 }

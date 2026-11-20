@@ -158,7 +158,32 @@ class CustomerTokenService {
 
     final customerName = customerRows.first['name'] as String;
 
+    // 4. Compute outstanding balance directly (credit sales - payments)
+    final salesResult = await _db.executor.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total_paisa), 0) AS total, MAX(created_at) AS last_at
+      FROM sales
+      WHERE shop_id = ? AND customer_id = ? AND status = 'posted' AND sale_type = 'credit'
+      ''',
+      [realShopId, customerId],
+    );
+    final paymentsResult = await _db.executor.rawQuery(
+      '''
+      SELECT COALESCE(SUM(amount_paisa), 0) AS total
+      FROM payments
+      WHERE shop_id = ? AND customer_id = ? AND status = 'posted'
+      ''',
+      [realShopId, customerId],
+    );
+    final salesPaisa = (salesResult.first['total'] as num?)?.toInt() ?? 0;
+    final paymentsPaisa = (paymentsResult.first['total'] as num?)?.toInt() ?? 0;
+    final lastAtMs = (salesResult.first['last_at'] as num?)?.toInt();
+
     return ResolvedCustomerToken(
+      balancePaisa: salesPaisa - paymentsPaisa,
+      lastBillAt: lastAtMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(lastAtMs, isUtc: true)
+          : null,
       shopId: realShopId,
       shopCode: formatShopCode(realShopId),
       shopName: shopName,
@@ -179,7 +204,13 @@ class ResolvedCustomerToken {
     required this.customerName,
     required this.token,
     this.shopPhone,
+    this.balancePaisa = 0,
+    this.lastBillAt,
   });
+
+  /// Outstanding udhar in paisa (positive = customer owes, negative = advance).
+  final int balancePaisa;
+  final DateTime? lastBillAt;
 
   final String shopId;
   final String shopCode;

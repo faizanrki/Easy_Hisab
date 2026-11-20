@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/app_router.dart';
 import '../../../../core/domain/money.dart';
-import '../../../auth/presentation/auth_providers.dart';
+import '../../application/customer_token_service.dart';
 import '../customer_portal_providers.dart';
-
-enum CustomerPortalTab { myStores, trackToken }
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -16,19 +16,44 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
-  CustomerPortalTab _activeTab = CustomerPortalTab.myStores;
+class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
+    with SingleTickerProviderStateMixin {
   final _shopCodeController = TextEditingController();
   final _tokenController = TextEditingController();
-  final _phoneController = TextEditingController();
   bool _isResolvingToken = false;
   String? _tokenError;
+  ResolvedCustomerToken? _resolvedToken;
+
+  late final AnimationController _entryController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutCubic,
+    ));
+    _entryController.forward();
+  }
 
   @override
   void dispose() {
+    _entryController.dispose();
     _shopCodeController.dispose();
     _tokenController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -42,7 +67,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       return;
     }
     if (token.isEmpty) {
-      setState(() => _tokenError = 'Please enter your Bill Token.');
+      setState(() => _tokenError = 'Please enter your Receipt Token.');
       return;
     }
 
@@ -64,19 +89,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         setState(() {
           _isResolvingToken = false;
           _tokenError =
-              'Invalid or expired token. Every new bill generates a new token and expires the old one. Please enter the token from your latest receipt.';
+              'Invalid or expired token. Every new bill generates a new token and expires the old one. Please check your latest receipt.';
         });
         return;
       }
 
-      setState(() => _isResolvingToken = false);
-
-      final phoneParam = res.shopPhone != null
-          ? '&phone=${Uri.encodeComponent(res.shopPhone!)}'
-          : '';
-      context.push(
-        '/customer/shops/${res.shopId}/ledger?customerId=${res.customerId}&shopName=${Uri.encodeComponent(res.shopName)}$phoneParam',
-      );
+      setState(() {
+        _isResolvingToken = false;
+        _resolvedToken = res;
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -87,416 +108,158 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     }
   }
 
-  void _linkPhone() {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) return;
-    ref.read(customerPhoneNumberProvider.notifier).setPhone(phone);
-    ref.invalidate(linkedShopsProvider);
+  void _resetLookup() {
+    setState(() {
+      _resolvedToken = null;
+      _tokenError = null;
+      _shopCodeController.clear();
+      _tokenController.clear();
+    });
+  }
+
+  Future<void> _launchWhatsApp(ResolvedCustomerToken resolved) async {
+    final phone = resolved.shopPhone;
+    if (phone == null || phone.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shop phone number is not available.')),
+      );
+      return;
+    }
+
+    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+    final internationalPhone =
+        cleanPhone.startsWith('0') ? '92${cleanPhone.substring(1)}' : cleanPhone;
+
+    final balance = Money.paisa(resolved.balancePaisa.abs()).format();
+    final msg = Uri.encodeComponent(
+      'Assalam-o-Alaikum, I am ${resolved.customerName} inquiring about my EasyHisab balance ($balance) at ${resolved.shopName} (${resolved.shopCode}).',
+    );
+    final url = Uri.parse('https://wa.me/$internationalPhone?text=$msg');
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final shopsAsync = ref.watch(linkedShopsProvider);
-    final activePhone = ref.watch(customerPhoneNumberProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Shops'),
+        title: const Text('Customer Hisaab Portal'),
+        centerTitle: true,
         leading: IconButton(
           tooltip: 'Switch Role / Back',
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go(AppRoutes.chooseRole),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Sign Out / Switch',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () async {
-              await ref.read(signOutUseCaseProvider).execute();
-              if (context.mounted) {
-                context.go(AppRoutes.chooseRole);
-              }
-            },
-          ),
-        ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                ChoiceChip(
-                  key: const Key('tab_my_stores'),
-                  avatar: const Icon(Icons.storefront_outlined, size: 16),
-                  label: const Text('My Stores'),
-                  selected: _activeTab == CustomerPortalTab.myStores,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _activeTab = CustomerPortalTab.myStores);
-                    }
-                  },
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  key: const Key('tab_track_token'),
-                  avatar: const Icon(Icons.vpn_key_rounded, size: 16),
-                  label: const Text('Track with Token'),
-                  selected: _activeTab == CustomerPortalTab.trackToken,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _activeTab = CustomerPortalTab.trackToken);
-                    }
-                  },
-                ),
-              ],
-            ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _resolvedToken != null
+                ? _buildInstantBalanceView(theme, _resolvedToken!)
+                : _buildTokenLookupForm(theme),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: _activeTab == CustomerPortalTab.myStores
-                ? _buildMyStoresTab(theme, shopsAsync, activePhone)
-                : _buildTokenLookupTab(theme),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildMyStoresTab(
-    ThemeData theme,
-    AsyncValue<List<dynamic>> shopsAsync,
-    String? activePhone,
-  ) {
-    return Column(
-      children: [
-        if (activePhone != null) ...[
+  Widget _buildTokenLookupForm(ThemeData theme) {
+    return SingleChildScrollView(
+      key: const ValueKey('token_lookup_form'),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Modern Hero Card
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: theme.colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primaryContainer,
+                  theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+              ),
+            ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    shape: BoxShape.circle,
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.verified_user_rounded,
-                      size: 20, color: Colors.green),
+                  child: Icon(
+                    Icons.vpn_key_rounded,
+                    size: 26,
+                    color: theme.colorScheme.onPrimary,
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Verified Customer Account',
-                        style: TextStyle(
-                          fontSize: 11,
+                      Text(
+                        'Check Balance with Token',
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        activePhone,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                        'Enter the Shop ID and 6-digit Receipt Token printed on your latest bill to view your balance.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.35,
                         ),
                       ),
                     ],
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () =>
-                      context.push('${AppRoutes.phoneLogin}?role=customer'),
-                  icon: const Icon(Icons.switch_account_outlined, size: 16),
-                  label: const Text('Switch', style: TextStyle(fontSize: 12)),
-                ),
               ],
             ),
           ),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Enter phone (e.g. 03001234567)',
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: _linkPhone,
-                  icon: const Icon(Icons.search_rounded),
-                  tooltip: 'Find Shops',
-                ),
-              ],
-            ),
-          ),
-        ],
-        Expanded(
-          child: shopsAsync.when(
-            loading: () => const Center(child: SizedBox(width: 24, height: 24)),
-            error: (err, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.error_outline,
-                        size: 48, color: theme.colorScheme.error),
-                    const SizedBox(height: 12),
-                    Text('Error loading shops: $err'),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () => ref.invalidate(linkedShopsProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            data: (shops) {
-              if (shops.isEmpty) {
-                return Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.storefront_outlined,
-                          size: 64,
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.7),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          activePhone == null
-                              ? 'No Connected Shops Yet'
-                              : 'No Khata Records Found',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          activePhone == null
-                              ? 'Enter your mobile number above or use the "Track with Token" tab to view your bills without a phone number.'
-                              : 'No shops have recorded credit or transactions for $activePhone yet.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: shops.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final item = shops[index];
-                  final isDue = item.balance.paisa > 0;
-                  final isAdvance = item.balance.paisa < 0;
-
-                  return Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(color: theme.colorScheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        final phoneParam = item.shopPhone != null
-                            ? '&phone=${Uri.encodeComponent(item.shopPhone!)}'
-                            : '';
-                        context.push(
-                          '/customer/shops/${item.shopId}/ledger?customerId=${item.customerId}&shopName=${Uri.encodeComponent(item.shopName)}$phoneParam',
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              child: Icon(
-                                Icons.storefront_rounded,
-                                color: theme.colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.shopName,
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  if (item.shopPhone != null) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      item.shopPhone!,
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Customer: ${item.customerName}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  Money.paisa(item.balance.paisa.abs())
-                                      .format(),
-                                  style:
-                                      theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: isDue
-                                        ? theme.colorScheme.error
-                                        : isAdvance
-                                            ? Colors.green
-                                            : theme.colorScheme.onSurface,
-                                  ),
-                                ),
-                                Text(
-                                  isDue
-                                      ? 'You owe'
-                                      : isAdvance
-                                          ? 'Advance'
-                                          : 'Settled',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isDue
-                                        ? theme.colorScheme.error
-                                        : isAdvance
-                                            ? Colors.green
-                                            : theme
-                                                .colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTokenLookupTab(ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Card(
-            elevation: 0,
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-            shape: RoundedRectangleBorder(
-              side: BorderSide(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.2)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    child: const Icon(Icons.vpn_key_rounded, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Instant Bill Token Lookup',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'No phone number or registration needed. Enter the unique Shop ID and Token printed on your bill receipt.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           if (_tokenError != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline_rounded,
-                      color: theme.colorScheme.onErrorContainer),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -504,26 +267,30 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       style: TextStyle(
                         color: theme.colorScheme.onErrorContainer,
                         fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
           ],
           TextFormField(
             key: const Key('token_shop_code_field'),
             controller: _shopCodeController,
             textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               labelText: 'Shop ID / Code *',
               hintText: 'e.g. SHOP-4F29A1',
-              prefixIcon: const Icon(Icons.storefront_outlined),
+              prefixIcon: const Icon(Icons.storefront_rounded),
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerLow,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
-              helperText: 'Found at the top and bottom of your receipt',
+              helperText: 'Printed at the top/bottom of your receipt',
             ),
           ),
           const SizedBox(height: 16),
@@ -531,26 +298,285 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             key: const Key('token_code_field'),
             controller: _tokenController,
             keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) {
+              if (!_isResolvingToken) _checkTokenLedger();
+            },
             decoration: InputDecoration(
               labelText: 'Receipt Token *',
               hintText: 'e.g. 849201',
               prefixIcon: const Icon(Icons.password_rounded),
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerLow,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
-              helperText: '6-digit access code from your latest bill',
+              helperText: '6-digit code from your latest bill',
             ),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
             key: const Key('token_submit_button'),
             onPressed: _isResolvingToken ? null : _checkTokenLedger,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
             icon: _isResolvingToken
-                ? const SizedBox(width: 20, height: 20)
-                : const Icon(Icons.receipt_long_rounded),
-            label: Text(_isResolvingToken
-                ? 'Verifying Token...'
-                : 'View My Udhar Ledger'),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.account_balance_wallet_rounded),
+            label: Text(
+              _isResolvingToken ? 'Checking Balance...' : 'Check My Balance',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.security_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Each new bill issues a fresh token and expires the previous one to keep your account private.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstantBalanceView(
+    ThemeData theme,
+    ResolvedCustomerToken resolved,
+  ) {
+    final isDue = resolved.balancePaisa > 0;
+    final isAdvance = resolved.balancePaisa < 0;
+    final formattedBalance =
+        Money.paisa(resolved.balancePaisa.abs()).format();
+
+    final Color statusColor = isDue
+        ? theme.colorScheme.error
+        : isAdvance
+            ? Colors.teal
+            : Colors.green.shade700;
+
+    final Color statusBg = isDue
+        ? theme.colorScheme.errorContainer
+        : isAdvance
+            ? Colors.teal.shade50
+            : Colors.green.shade50;
+
+    final String statusLabel = isDue
+        ? 'Outstanding Udhar Due'
+        : isAdvance
+            ? 'Advance Balance'
+            : 'Account Cleared';
+
+    final IconData statusIcon = isDue
+        ? Icons.pending_actions_rounded
+        : isAdvance
+            ? Icons.savings_rounded
+            : Icons.verified_rounded;
+
+    return SingleChildScrollView(
+      key: const ValueKey('instant_balance_view'),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Main Animated Balance Card
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.94, end: 1.0),
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) {
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Card(
+              elevation: 2,
+              shadowColor: statusColor.withValues(alpha: 0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(
+                  color: statusColor.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Shop Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.storefront_rounded,
+                            size: 16,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            resolved.shopCode,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onPrimaryContainer,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      resolved.shopName,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Customer: ${resolved.customerName}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Prominent Balance Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(statusIcon, size: 36, color: statusColor),
+                          const SizedBox(height: 10),
+                          Text(
+                            statusLabel,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            formattedBalance,
+                            key: const Key('customer_instant_balance_text'),
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (resolved.lastBillAt != null) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 15,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Last Bill: ${DateFormat('dd MMM yyyy, hh:mm a').format(resolved.lastBillAt!.toLocal())}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (resolved.shopPhone != null &&
+              resolved.shopPhone!.trim().isNotEmpty) ...[
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => _launchWhatsApp(resolved),
+              icon: const Icon(Icons.chat_bubble_rounded),
+              label: const Text(
+                'WhatsApp Shopkeeper',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          OutlinedButton.icon(
+            key: const Key('check_another_token_button'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _resetLookup,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text(
+              'Check Another Bill / Token',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../application/receipt_ports.dart';
 import '../domain/receipt_data.dart';
+import 'easyhisab_logo_bytes.dart';
 
 final class PdfReceiptRenderer implements ReceiptRendererPort {
   const PdfReceiptRenderer();
@@ -27,6 +28,8 @@ final class PdfReceiptRenderer implements ReceiptRendererPort {
       marginAll: 4 * PdfPageFormat.mm,
     );
 
+    final logoImage = pw.MemoryImage(easyHisabLogoBytes);
+
     doc.addPage(
       pw.Page(
         pageFormat: pageFormat,
@@ -36,42 +39,46 @@ final class PdfReceiptRenderer implements ReceiptRendererPort {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                // 1. App Brand Badge & Tagline (EasyHisab Official Brand)
+                // 1. EasyHisab Logo + App Name + Tagline
                 pw.Center(
-                  child: pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 4),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromHex('#1B5E20'), // EasyHisab emerald/forest green
-                      borderRadius: pw.BorderRadius.circular(6),
-                    ),
-                    child: pw.Column(
-                      mainAxisSize: pw.MainAxisSize.min,
-                      children: [
-                        pw.Text(
-                          'EASYHISAB',
-                          style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontSize: 11,
-                            fontWeight: pw.FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
+                  child: pw.Column(
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.ClipRRect(
+                        horizontalRadius: 6,
+                        verticalRadius: 6,
+                        child: pw.Image(
+                          logoImage,
+                          width: 38,
+                          height: 38,
+                          fit: pw.BoxFit.contain,
                         ),
-                        pw.SizedBox(height: 1),
-                        pw.Text(
-                          'Your Digital Udhar Khata',
-                          style: pw.TextStyle(
-                            color: PdfColor.fromHex('#C8E6C9'),
-                            fontSize: 6.5,
-                            fontWeight: pw.FontWeight.normal,
-                            letterSpacing: 0.5,
-                          ),
+                      ),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        'EASYHISAB',
+                        style: pw.TextStyle(
+                          color: PdfColor.fromHex('#1B5E20'),
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          letterSpacing: 1.2,
                         ),
-                      ],
-                    ),
+                      ),
+                      pw.SizedBox(height: 1),
+                      pw.Text(
+                        'Your Digital Udhar Khata',
+                        style: const pw.TextStyle(
+                          color: PdfColors.grey700,
+                          fontSize: 6.5,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 6),
+                pw.Divider(thickness: 0.6, color: PdfColors.grey400),
+                pw.SizedBox(height: 2),
 
                 // 2. Shopkeeper Name & Details
                 pw.Center(

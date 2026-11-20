@@ -61,7 +61,7 @@ class ReceiptPreviewScreen extends ConsumerWidget {
           ),
           body: Column(
             children: [
-              // Dual Sharing Action Buttons: WhatsApp Text & Share PDF
+              // Single WhatsApp send action
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -111,28 +111,6 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    // 2. Share PDF File
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () async {
-                          final renderer = ref.read(receiptRendererProvider);
-                          final shareService =
-                              ref.read(receiptShareServiceProvider);
-                          final pdfBytes =
-                              await renderer.renderReceiptPdf(receipt);
-                          await shareService.shareReceiptPdf(receipt, pdfBytes);
-                        },
-                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                        label: const Text(
-                          'Share PDF',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -149,7 +127,7 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                   canChangeOrientation: false,
                   canDebug: false,
                   allowPrinting: true,
-                  allowSharing: true,
+                  allowSharing: false,
                   pdfFileName: 'EasyHisab_Receipt_${receipt.receiptNo}.pdf',
                 ),
               ),

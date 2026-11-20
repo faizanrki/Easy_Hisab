@@ -39,29 +39,57 @@ class RoleChoiceScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
+                Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1B5E20).withValues(alpha: 0.25),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/images/easyhisab_logo.png',
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Icon(Icons.menu_book_rounded,
+                              size: 48, color: Colors.white),
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Icon(Icons.menu_book_rounded,
-                      size: 64, color: theme.colorScheme.primary),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 Text(
                   'EasyHisab',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
+                    color: const Color(0xFF1B5E20),
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  'Your digital udhar khata',
+                  'Your digital udhar khata • ڈیجیٹل کھاتا',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.2,
+                  ),
                 ),
                 const Spacer(),
                 _RoleCard(
@@ -82,9 +110,8 @@ class RoleChoiceScreen extends ConsumerWidget {
                 _RoleCard(
                   icon: Icons.person_rounded,
                   title: 'I am a Customer',
-                  subtitle: user != null
-                      ? 'Check balance for ${user.phoneNumber ?? 'Customer'}'
-                      : 'Track udhar via Bill Token (No login) or Mobile Number',
+                  subtitle:
+                      'Track your udhar balance using Shop ID & Bill Token (No login required)',
                   onTap: () => context.go(AppRoutes.customerShops),
                 ),
                 const SizedBox(height: 24),
