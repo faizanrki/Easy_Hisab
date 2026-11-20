@@ -1,0 +1,12 @@
+EasyHisab Android Release Keystore Info
+=======================================
+Keystore File: keystore/easyhisab-release.jks
+Key Alias: easyhisab
+Store Password: EasyHisab@2026
+Key Password: EasyHisab@2026
+
+SHA-1:   9D:9D:5C:59:EB:A6:16:61:93:6C:95:20:ED:11:77:19:9E:B9:4B:0A
+SHA-256: F3:1A:3F:4C:01:14:AB:E4:84:5F:BA:47:62:D5:4B:97:0C:7C:47:F9:D7:5E:DE:ED:F7:1F:35:34:C3:06:28:72
+
+Note: Add the SHA-1 fingerprint above to Firebase Console > Project Settings > Your Android App
+so Google Sign-In and Google Drive backup work in release builds.

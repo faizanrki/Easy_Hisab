@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/app_router.dart';
 import '../../../../core/domain/money.dart';
+import '../../../../widgets/theme_toggle_button.dart';
 import '../../application/customer_token_service.dart';
 import '../customer_portal_providers.dart';
 
@@ -158,6 +159,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go(AppRoutes.chooseRole),
         ),
+        actions: const [
+          ThemeToggleButton(),
+        ],
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,

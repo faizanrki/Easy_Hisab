@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/app_router.dart';
+import '../../../../widgets/theme_toggle_button.dart';
 import '../../../analytics/domain/analytics_summary.dart';
 import '../../../analytics/presentation/analytics_providers.dart';
 import '../../../auth/presentation/auth_providers.dart';
@@ -73,6 +74,7 @@ class ShopDashboardScreen extends ConsumerWidget {
               );
             },
           ),
+          const ThemeToggleButton(),
           PopupMenuButton<String>(
             tooltip: 'More options',
             icon: const Icon(Icons.more_vert_rounded),

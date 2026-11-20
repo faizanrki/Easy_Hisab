@@ -15,66 +15,107 @@ import 'features/auth/domain/auth_service_port.dart';
 import 'features/auth/presentation/auth_providers.dart';
 import 'features/sync/data/firestore_cloud_sync_remote.dart';
 import 'features/sync/presentation/sync_providers.dart';
+import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final database = await LocalDatabase.open();
+  final initialThemeMode = await loadSavedThemeMode();
+  runApp(EasyHisabBootstrap(initialThemeMode: initialThemeMode));
+}
 
-  final sessionStorage = LocalSessionStorage(database);
-  final savedSession = await sessionStorage.loadSession();
+class EasyHisabBootstrap extends StatefulWidget {
+  const EasyHisabBootstrap({super.key, required this.initialThemeMode});
 
-  String initialLocation = AppRoutes.chooseRole;
-  if (savedSession != null) {
-    initialLocation = savedSession.role == 'customer'
-        ? AppRoutes.customerShops
-        : AppRoutes.shopDashboard;
+  final ThemeMode initialThemeMode;
+
+  @override
+  State<EasyHisabBootstrap> createState() => _EasyHisabBootstrapState();
+}
+
+class _EasyHisabBootstrapState extends State<EasyHisabBootstrap> {
+  String? _resolvedRoute;
+  List<dynamic> _overrides = const [];
+
+  Future<String> _initializeApp() async {
+    final database = await LocalDatabase.open();
+    final sessionStorage = LocalSessionStorage(database);
+    final savedSession = await sessionStorage.loadSession();
+
+    String initialLocation = AppRoutes.chooseRole;
+    if (savedSession != null) {
+      initialLocation = savedSession.role == 'customer'
+          ? AppRoutes.customerShops
+          : AppRoutes.shopDashboard;
+    }
+
+    final overrides = <dynamic>[
+      initialThemeModeProvider.overrideWithValue(widget.initialThemeMode),
+      localDatabaseProvider.overrideWithValue(database),
+    ];
+
+    AuthServicePort authService = InMemoryAuthService(
+      initialUser: savedSession?.user,
+    );
+
+    try {
+      await Firebase.initializeApp();
+      authService = FirebaseAuthService(
+        fb_auth.FirebaseAuth.instance,
+        fallbackUser: savedSession?.user,
+      );
+      overrides.add(
+        cloudSyncRemoteProvider.overrideWithValue(
+          FirestoreCloudSyncRemote(fb_store.FirebaseFirestore.instance),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Firebase initialization fallback to in-memory: $e');
+    }
+
+    final activeUser = authService.currentUser;
+    if (savedSession == null && activeUser != null) {
+      await sessionStorage.saveSession(
+        uid: activeUser.uid,
+        phone: activeUser.phoneNumber,
+        displayName: activeUser.displayName,
+        email: activeUser.email,
+        role: 'shopkeeper',
+      );
+      initialLocation = AppRoutes.shopDashboard;
+    }
+
+    overrides.add(authServiceProvider.overrideWithValue(authService));
+    _overrides = overrides;
+    return initialLocation;
   }
 
-  final overrides = [
-    localDatabaseProvider.overrideWithValue(database),
-  ];
-
-  AuthServicePort authService = InMemoryAuthService(
-    initialUser: savedSession?.user,
-  );
-
-  try {
-    await Firebase.initializeApp();
-    authService = FirebaseAuthService(
-      fb_auth.FirebaseAuth.instance,
-      fallbackUser: savedSession?.user,
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: _resolvedRoute == null
+          ? MaterialApp(
+              key: const ValueKey('splash_app'),
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: widget.initialThemeMode,
+              home: SplashScreen(
+                onInitialize: _initializeApp,
+                onReady: (route) {
+                  setState(() => _resolvedRoute = route);
+                },
+              ),
+            )
+          : ProviderScope(
+              key: const ValueKey('main_app'),
+              overrides: _overrides.cast(),
+              child: EasyHisabApp(initialLocation: _resolvedRoute!),
+            ),
     );
-    overrides.add(
-      cloudSyncRemoteProvider.overrideWithValue(
-        FirestoreCloudSyncRemote(fb_store.FirebaseFirestore.instance),
-      ),
-    );
-  } catch (e) {
-    debugPrint('Firebase initialization fallback to in-memory: $e');
   }
-
-  // If Firebase persisted a signed-in user (e.g. Google/Email/Phone) even if
-  // local session wasn't written yet, persist it and go straight to dashboard.
-  final activeUser = authService.currentUser;
-  if (savedSession == null && activeUser != null) {
-    await sessionStorage.saveSession(
-      uid: activeUser.uid,
-      phone: activeUser.phoneNumber,
-      displayName: activeUser.displayName,
-      email: activeUser.email,
-      role: 'shopkeeper',
-    );
-    initialLocation = AppRoutes.shopDashboard;
-  }
-
-  overrides.add(
-    authServiceProvider.overrideWithValue(authService),
-  );
-
-  runApp(
-    ProviderScope(
-      overrides: overrides,
-      child: EasyHisabApp(initialLocation: initialLocation),
-    ),
-  );
 }
