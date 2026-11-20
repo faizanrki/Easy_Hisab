@@ -45,98 +45,420 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
     super.dispose();
   }
 
-  void _showAddProductDialog(List<Product> products) {
-    if (products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Catalog is empty. Add products to catalog first.'),
-        ),
-      );
-      return;
+  void _showItemDialog(
+    List<Product> products, {
+    required String shopId,
+    CartLine? editItem,
+    int? editIndex,
+  }) {
+    Product? selectedProduct;
+    if (products.isNotEmpty) {
+      if (editItem?.productId != null) {
+        selectedProduct = products
+            .where((p) => p.id == editItem!.productId)
+            .firstOrNull ?? products.first;
+      } else {
+        selectedProduct = products.first;
+      }
     }
 
-    Product selectedProduct = products.first;
-    final qtyController = TextEditingController(text: '1');
+    final nameController = TextEditingController(
+      text: editItem?.description ?? selectedProduct?.name ?? '',
+    );
+    final priceController = TextEditingController(
+      text: editItem != null
+          ? (editItem.unitPrice.paisa / 100).toStringAsFixed(
+              editItem.unitPrice.paisa % 100 == 0 ? 0 : 2,
+            )
+          : selectedProduct != null
+              ? (selectedProduct.unitPrice.paisa / 100).toStringAsFixed(
+                  selectedProduct.unitPrice.paisa % 100 == 0 ? 0 : 2,
+                )
+              : '',
+    );
+    final qtyController = TextEditingController(
+      text: editItem?.quantity.format() ?? '1',
+    );
+    String selectedUnit =
+        editItem?.unit ?? selectedProduct?.unit ?? StandardGroceryUnits.kg;
+    bool saveToCatalog = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            Money? computedTotal;
+            try {
+              final q = Quantity.parse(qtyController.text);
+              final p = Money.parse(priceController.text);
+              computedTotal = q.times(p);
+            } catch (_) {
+              computedTotal = null;
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 24,
-                right: 24,
-                top: 24,
+                left: 20,
+                right: 20,
+                top: 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Add Item to Cart',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          editIndex != null
+                              ? 'Edit Bill Item'
+                              : 'Add Item to Cart',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<Product>(
-                    isExpanded: true,
-                    initialValue: selectedProduct,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Product',
-                      prefixIcon: Icon(Icons.shopping_basket_outlined),
-                    ),
-                    items: products.map((p) {
-                      return DropdownMenuItem(
-                        value: p,
-                        child: Text(
-                          '${p.name} (${p.unitPrice.format()}/${p.unit})',
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() => selectedProduct = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: qtyController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Quantity (${selectedProduct.unit})',
-                      hintText: 'e.g. 1, 2.5, 0.5',
-                      prefixIcon: const Icon(Icons.scale_outlined),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () {
-                      try {
-                        final qty = Quantity.parse(qtyController.text);
-                        setState(() {
-                          _cart = _cart.addItemFromProduct(
-                            selectedProduct,
-                            qty,
-                          );
-                        });
-                        Navigator.pop(ctx);
-                      } catch (e) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter a valid quantity'),
+                    const SizedBox(height: 12),
+
+                    // Quick Select from Catalog if catalog has products
+                    if (products.isNotEmpty) ...[
+                      DropdownButtonFormField<Product>(
+                        isExpanded: true,
+                        initialValue: selectedProduct,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Product',
+                          prefixIcon: Icon(Icons.shopping_basket_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: products.map((p) => DropdownMenuItem<Product>(
+                                value: p,
+                                child: Text(
+                                  '${p.name} (${p.unitPrice.format()}/${p.unit})',
+                                ),
+                              )).toList(),
+                        onChanged: (p) {
+                          setModalState(() {
+                            selectedProduct = p;
+                            if (p != null) {
+                              nameController.text = p.name;
+                              priceController.text = (p.unitPrice.paisa / 100)
+                                  .toStringAsFixed(
+                                      p.unitPrice.paisa % 100 == 0 ? 0 : 2);
+                              selectedUnit = p.unit;
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Item Name
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Product / Item Name',
+                        hintText: 'e.g. Sugar, Flour, Daal Chana, Milk',
+                        prefixIcon: Icon(Icons.shopping_bag_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Unit Price & Unit Row
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: priceController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Price / $selectedUnit (Rs)',
+                              hintText: 'e.g. 50, 150',
+                              prefixIcon:
+                                  const Icon(Icons.price_change_outlined),
+                              border: const OutlineInputBorder(),
+                            ),
+                            onChanged: (_) => setModalState(() {}),
                           ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            initialValue:
+                                StandardGroceryUnits.all.contains(selectedUnit)
+                                    ? selectedUnit
+                                    : StandardGroceryUnits.kg,
+                            decoration: const InputDecoration(
+                              labelText: 'Unit',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: StandardGroceryUnits.all
+                                .map((u) => DropdownMenuItem(
+                                      value: u,
+                                      child: Text(u),
+                                    ))
+                                .toList(),
+                            onChanged: (u) {
+                              if (u != null) {
+                                setModalState(() => selectedUnit = u);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Quantity Input with Fractional Decimal support
+                    TextFormField(
+                      controller: qtyController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Quantity ($selectedUnit)',
+                        hintText: 'e.g. 1, 1.5, 1.25, 0.5',
+                        prefixIcon: const Icon(Icons.scale_outlined),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Quick Quantity Presets
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ActionChip(
+                          label: const Text('+0.5'),
+                          onPressed: () {
+                            try {
+                              final current =
+                                  num.tryParse(qtyController.text) ?? 0;
+                              qtyController.text = (current + 0.5).toString();
+                              setModalState(() {});
+                            } catch (_) {}
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('+1'),
+                          onPressed: () {
+                            try {
+                              final current =
+                                  num.tryParse(qtyController.text) ?? 0;
+                              qtyController.text = (current + 1).toString();
+                              setModalState(() {});
+                            } catch (_) {}
+                          },
+                        ),
+                        ActionChip(
+                          label: Text('1.25 $selectedUnit'),
+                          onPressed: () {
+                            qtyController.text = '1.25';
+                            setModalState(() {});
+                          },
+                        ),
+                        ActionChip(
+                          label: Text('1.5 $selectedUnit'),
+                          onPressed: () {
+                            qtyController.text = '1.5';
+                            setModalState(() {});
+                          },
+                        ),
+                        ActionChip(
+                          label: Text('2 $selectedUnit'),
+                          onPressed: () {
+                            qtyController.text = '2';
+                            setModalState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Live Computed Total Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: computedTotal != null
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Item Total:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: computedTotal != null
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
+                                  : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            computedTotal != null
+                                ? computedTotal.format()
+                                : 'Enter price & qty',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: computedTotal != null
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
+                                  : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Save to Catalog Checkbox
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: saveToCatalog,
+                      title: const Text('Save / Update in Product Catalog'),
+                      subtitle: const Text(
+                        'Keep this price and product saved for future bills',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onChanged: (val) {
+                        setModalState(() => saveToCatalog = val ?? false);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Submit Action Button
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final name = nameController.text.trim();
+                        if (name.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter product name'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Quantity qty;
+                        try {
+                          qty = Quantity.parse(qtyController.text);
+                        } catch (e) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Please enter a valid quantity (e.g. 1.5)'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Money price;
+                        try {
+                          price = Money.parse(priceController.text);
+                        } catch (e) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('Please enter a valid price (e.g. 50)'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        String? prodId =
+                            selectedProduct?.id ?? editItem?.productId;
+
+                        if (saveToCatalog) {
+                          try {
+                            final details = ProductDetails.create(
+                              name: name,
+                              unit: selectedUnit,
+                              unitPrice: price,
+                            );
+
+                            if (selectedProduct != null) {
+                              // Update catalog price
+                              await ref
+                                  .read(updateProductUseCaseProvider)
+                                  .execute(
+                                    shopId: shopId,
+                                    productId: selectedProduct!.id,
+                                    details: details,
+                                  );
+                            } else {
+                              // Create in catalog
+                              final newProd = await ref
+                                  .read(createProductUseCaseProvider)
+                                  .execute(
+                                    shopId: shopId,
+                                    details: details,
+                                  );
+                              prodId = newProd.id;
+                            }
+                            ref.invalidate(productListProvider);
+                          } catch (e) {
+                            debugPrint('Could not save to catalog: $e');
+                          }
+                        }
+
+                        final line = CartLine(
+                          productId: prodId,
+                          description: name,
+                          unit: selectedUnit,
+                          quantity: qty,
+                          unitPrice: price,
                         );
-                      }
-                    },
-                    child: const Text('Add to Bill'),
-                  ),
-                ],
+
+                        if (!ctx.mounted) return;
+                        setState(() {
+                          final items = List<CartLine>.from(_cart.items);
+                          if (editIndex != null && editIndex < items.length) {
+                            items[editIndex] = line;
+                          } else {
+                            items.add(line);
+                          }
+                          _cart = _cart.copyWith(items: items);
+                        });
+
+                        Navigator.pop(ctx);
+                      },
+                      child: Text(
+                        editIndex != null ? 'Update Item' : 'Add to Bill',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -315,19 +637,22 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Items in Bill (${_cart.items.length})',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          'Items in Bill (${_cart.items.length})',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      productsAsync.maybeWhen(
-                        data: (products) => ActionChip(
-                          avatar: const Icon(Icons.add, size: 18),
-                          label: const Text('Add Product'),
-                          onPressed: () => _showAddProductDialog(products),
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Product'),
+                        onPressed: () => _showItemDialog(
+                          productsAsync.value ?? [],
+                          shopId: shopContext.shopId,
                         ),
-                        orElse: () => const SizedBox.shrink(),
                       ),
                     ],
                   ),
@@ -345,7 +670,7 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                             const Text('Cart is empty'),
                             const SizedBox(height: 4),
                             Text(
-                              'Tap "Add Product" to add grocery items.',
+                              'Tap "Add Product / Item" to add groceries with customizable price & weight.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -361,12 +686,25 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          title: Text(
-                            item.description,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          onTap: () => _showItemDialog(
+                            productsAsync.value ?? [],
+                            shopId: shopContext.shopId,
+                            editItem: item,
+                            editIndex: index,
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.description,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+                            ],
                           ),
                           subtitle: Text(
-                            '${item.quantity.format()} ${item.unit} @ ${item.unitPrice.format()}',
+                            '${item.quantity.format()} ${item.unit} @ ${item.unitPrice.format()} • Tap to edit',
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,

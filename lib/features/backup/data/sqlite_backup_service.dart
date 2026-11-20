@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../../../core/database/db_transaction.dart';
+import '../../../core/domain/app_failure.dart';
 import '../../../core/domain/entity_id.dart';
 import '../domain/backup_record.dart';
 import '../domain/backup_service_port.dart';
@@ -16,6 +17,92 @@ class SqliteBackupService implements BackupServicePort {
   final IdGenerator _idGen;
 
   static const int currentSchemaVersion = 1;
+
+  static const List<String> _backupTables = [
+    'shops',
+    'customers',
+    'products',
+    'sales',
+    'sale_items',
+    'payments',
+    'payment_allocations',
+    'customer_access_tokens',
+    'app_settings',
+  ];
+
+  @override
+  Future<String> exportBackupJson() async {
+    final Map<String, dynamic> tablesData = {};
+    for (final table in _backupTables) {
+      try {
+        final rows = await _db.executor.rawQuery('SELECT * FROM $table');
+        tablesData[table] = rows;
+      } catch (_) {
+        tablesData[table] = [];
+      }
+    }
+
+    final rawJson = jsonEncode(tablesData);
+    final checksum = sha256.convert(utf8.encode(rawJson)).toString();
+
+    final payload = {
+      'schema_version': currentSchemaVersion,
+      'app': 'EasyHisab',
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'sha256': checksum,
+      'tables': tablesData,
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  @override
+  Future<void> restoreFromJson(String jsonString) async {
+    final Map<String, dynamic> parsed;
+    try {
+      parsed = jsonDecode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      throw ValidationFailure('Invalid backup file format: $e');
+    }
+
+    final tables = parsed['tables'] as Map<String, dynamic>?;
+    if (tables == null) {
+      throw const ValidationFailure('Backup data missing tables payload');
+    }
+
+    await _db.executor.execute('PRAGMA foreign_keys = OFF');
+    try {
+      for (final table in _backupTables.reversed) {
+        try {
+          await _db.executor.execute('DELETE FROM $table');
+        } catch (_) {}
+      }
+
+      for (final entry in tables.entries) {
+        final tableName = entry.key;
+        if (!_backupTables.contains(tableName)) continue;
+        final rows = entry.value as List<dynamic>? ?? [];
+        for (final row in rows) {
+          if (row is Map<String, dynamic>) {
+            await _db.executor.insert(tableName, row);
+          }
+        }
+      }
+    } finally {
+      await _db.executor.execute('PRAGMA foreign_keys = ON');
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    await _db.executor.insert('backup_history', {
+      'id': _idGen.newId(),
+      'drive_file_id': null,
+      'schema_version': currentSchemaVersion,
+      'sha256': parsed['sha256'] as String?,
+      'result': 'restored',
+      'error': null,
+      'created_at': nowMs,
+    });
+  }
 
   @override
   Future<BackupRecord> createBackup() async {

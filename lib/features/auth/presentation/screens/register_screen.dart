@@ -44,10 +44,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     try {
       final register = ref.read(registerWithEmailUseCaseProvider);
-      await register.execute(
+      final user = await register.execute(
         _emailController.text.trim(),
         _passwordController.text,
         displayName: _nameController.text.trim(),
+      );
+
+      await ref.read(localSessionStorageProvider).saveSession(
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: _selectedRole == AuthRole.shopkeeper ? 'shopkeeper' : 'customer',
       );
 
       if (mounted) {
@@ -56,6 +63,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             content: Text('Account created! Please verify your email.'),
           ),
         );
+        if (_selectedRole == AuthRole.shopkeeper) {
+          context.go(AppRoutes.shopDashboard);
+        } else {
+          context.go(AppRoutes.customerShops);
+        }
+      }
+    } on AppFailure catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleGoogleRegister() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final user = await authService.signInWithGoogle();
+      await ref.read(localSessionStorageProvider).saveSession(
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: _selectedRole == AuthRole.shopkeeper ? 'shopkeeper' : 'customer',
+      );
+      if (mounted) {
         if (_selectedRole == AuthRole.shopkeeper) {
           context.go(AppRoutes.shopDashboard);
         } else {
@@ -245,6 +289,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         )
                       : const Text('Create Account'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _handleGoogleRegister,
+                  icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
+                  label: const Text('Sign Up with Google'),
                 ),
                 const SizedBox(height: 16),
                 Row(

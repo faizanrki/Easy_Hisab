@@ -6,4 +6,8 @@ export '../../core/contracts/product_lookup_port.dart';
 export 'domain/product.dart'
     show Product, ProductDetails, StandardGroceryUnits;
 export 'presentation/product_providers.dart'
-    show productLookupPortProvider, productListProvider;
+    show
+        productLookupPortProvider,
+        productListProvider,
+        createProductUseCaseProvider,
+        updateProductUseCaseProvider;

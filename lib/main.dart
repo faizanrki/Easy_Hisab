@@ -11,6 +11,7 @@ import 'core/database/local_database.dart';
 import 'features/auth/data/firebase_auth_service.dart';
 import 'features/auth/data/in_memory_auth_service.dart';
 import 'features/auth/data/local_session_storage.dart';
+import 'features/auth/domain/auth_service_port.dart';
 import 'features/auth/presentation/auth_providers.dart';
 import 'features/sync/data/firestore_cloud_sync_remote.dart';
 import 'features/sync/presentation/sync_providers.dart';
@@ -33,27 +34,28 @@ Future<void> main() async {
     localDatabaseProvider.overrideWithValue(database),
   ];
 
-  if (savedSession != null) {
-    overrides.add(
-      authServiceProvider.overrideWithValue(
-        InMemoryAuthService(initialUser: savedSession.user),
-      ),
-    );
-  }
+  AuthServicePort authService = InMemoryAuthService(
+    initialUser: savedSession?.user,
+  );
 
   try {
     await Firebase.initializeApp();
-    overrides.addAll([
-      authServiceProvider.overrideWithValue(
-        FirebaseAuthService(fb_auth.FirebaseAuth.instance),
-      ),
+    authService = FirebaseAuthService(
+      fb_auth.FirebaseAuth.instance,
+      fallbackUser: savedSession?.user,
+    );
+    overrides.add(
       cloudSyncRemoteProvider.overrideWithValue(
         FirestoreCloudSyncRemote(fb_store.FirebaseFirestore.instance),
       ),
-    ]);
+    );
   } catch (e) {
     debugPrint('Firebase initialization fallback to in-memory: $e');
   }
+
+  overrides.add(
+    authServiceProvider.overrideWithValue(authService),
+  );
 
   runApp(
     ProviderScope(

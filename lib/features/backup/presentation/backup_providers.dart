@@ -25,6 +25,17 @@ class BackupHistoryNotifier extends AsyncNotifier<List<BackupRecord>> {
     state = AsyncValue.data(await service.getBackupHistory());
     return record;
   }
+
+  Future<String> exportBackup() async {
+    final service = ref.read(backupServiceProvider);
+    return service.exportBackupJson();
+  }
+
+  Future<void> restoreBackup(String jsonString) async {
+    final service = ref.read(backupServiceProvider);
+    await service.restoreFromJson(jsonString);
+    state = AsyncValue.data(await service.getBackupHistory());
+  }
 }
 
 final backupHistoryProvider =

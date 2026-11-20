@@ -1,13 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/domain/app_failure.dart';
 import '../domain/auth_service_port.dart';
 import '../domain/auth_user.dart';
 
 final class FirebaseAuthService implements AuthServicePort {
-  FirebaseAuthService(this._firebaseAuth);
+  FirebaseAuthService(this._firebaseAuth, {this.fallbackUser});
 
   final fb.FirebaseAuth _firebaseAuth;
+  AuthUser? fallbackUser;
 
   AuthUser _mapFirebaseUser(fb.User user) {
     return AuthUser(
@@ -22,13 +24,17 @@ final class FirebaseAuthService implements AuthServicePort {
   @override
   AuthUser? get currentUser {
     final user = _firebaseAuth.currentUser;
-    return user != null ? _mapFirebaseUser(user) : null;
+    if (user != null) return _mapFirebaseUser(user);
+    return fallbackUser;
   }
 
   @override
   Stream<AuthUser?> authStateChanges() {
     return _firebaseAuth.authStateChanges().map(
-          (user) => user != null ? _mapFirebaseUser(user) : null,
+          (user) {
+            if (user != null) return _mapFirebaseUser(user);
+            return fallbackUser;
+          },
         );
   }
 
@@ -42,7 +48,9 @@ final class FirebaseAuthService implements AuthServicePort {
       if (cred.user == null) {
         throw const NotFoundFailure('Failed to authenticate user');
       }
-      return _mapFirebaseUser(cred.user!);
+      final user = _mapFirebaseUser(cred.user!);
+      fallbackUser = user;
+      return user;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
     }
@@ -65,7 +73,9 @@ final class FirebaseAuthService implements AuthServicePort {
       if (displayName != null && displayName.isNotEmpty) {
         await cred.user!.updateDisplayName(displayName);
       }
-      return _mapFirebaseUser(cred.user!);
+      final user = _mapFirebaseUser(cred.user!);
+      fallbackUser = user;
+      return user;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
     }
@@ -74,14 +84,30 @@ final class FirebaseAuthService implements AuthServicePort {
   @override
   Future<AuthUser> signInWithGoogle() async {
     try {
-      final provider = fb.GoogleAuthProvider();
-      final cred = await _firebaseAuth.signInWithProvider(provider);
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            '80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com',
+      );
+      final account = await GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      final authTokens = await account.authorizationClient
+          .authorizationForScopes(['email', 'profile']);
+      final credential = fb.GoogleAuthProvider.credential(
+        accessToken: authTokens?.accessToken,
+        idToken: idToken,
+      );
+      final cred = await _firebaseAuth.signInWithCredential(credential);
       if (cred.user == null) {
         throw const NotFoundFailure('Google Sign-In failed');
       }
-      return _mapFirebaseUser(cred.user!);
+      final user = _mapFirebaseUser(cred.user!);
+      fallbackUser = user;
+      return user;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
+    } catch (e) {
+      if (e is AppFailure) rethrow;
+      throw AuthFailure(e.toString());
     }
   }
 
@@ -127,7 +153,9 @@ final class FirebaseAuthService implements AuthServicePort {
       if (cred.user == null) {
         throw const NotFoundFailure('Phone authentication failed');
       }
-      return _mapFirebaseUser(cred.user!);
+      final user = _mapFirebaseUser(cred.user!);
+      fallbackUser = user;
+      return user;
     } on fb.FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
     }
@@ -152,6 +180,10 @@ final class FirebaseAuthService implements AuthServicePort {
 
   @override
   Future<void> signOut() async {
+    fallbackUser = null;
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
     await _firebaseAuth.signOut();
   }
 

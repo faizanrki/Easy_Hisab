@@ -26,11 +26,6 @@ class ShopDashboardScreen extends ConsumerWidget {
           data: (shop) => Text(shop?.name ?? 'Shop Dashboard'),
           orElse: () => const Text('Shop Dashboard'),
         ),
-        leading: IconButton(
-          tooltip: 'Switch Role',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutes.chooseRole),
-        ),
         actions: [
           Consumer(
             builder: (context, ref, _) {

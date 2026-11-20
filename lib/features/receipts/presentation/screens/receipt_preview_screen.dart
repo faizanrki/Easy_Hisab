@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
@@ -41,21 +42,46 @@ class ReceiptPreviewScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             title: Text('Receipt #${receipt.receiptNo}'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.copy_rounded),
+                tooltip: 'Copy Receipt Text',
+                onPressed: () {
+                  final text = receipt.formatWhatsAppText();
+                  Clipboard.setData(ClipboardData(text: text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Receipt text copied to clipboard!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           body: Column(
             children: [
-              // Single, prominent WhatsApp Action Bar
+              // Dual Sharing Action Buttons: WhatsApp Text & Share PDF
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                color: theme.colorScheme.surfaceContainerHighest,
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
                 child: Row(
                   children: [
+                    // 1. Send WhatsApp Text
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366), // Official WhatsApp Green
+                          backgroundColor: const Color(0xFF25D366), // WhatsApp Green
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           elevation: 1,
                         ),
                         onPressed: () async {
@@ -70,17 +96,40 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'Could not open WhatsApp on this device.'),
+                                    'Could not open WhatsApp. Receipt text copied to clipboard.'),
                               ),
                             );
+                            Clipboard.setData(ClipboardData(text: msg));
                           }
                         },
-                        icon: const Icon(Icons.chat_bubble_rounded),
+                        icon: const Icon(Icons.chat_bubble_rounded, size: 18),
                         label: Text(
                           receipt.customerPhone != null
                               ? 'Send to ${receipt.customerName} on WhatsApp'
-                              : 'Share via WhatsApp',
+                              : 'WhatsApp Text',
                           style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // 2. Share PDF File
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () async {
+                          final renderer = ref.read(receiptRendererProvider);
+                          final shareService =
+                              ref.read(receiptShareServiceProvider);
+                          final pdfBytes =
+                              await renderer.renderReceiptPdf(receipt);
+                          await shareService.shareReceiptPdf(receipt, pdfBytes);
+                        },
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                        label: const Text(
+                          'Share PDF',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -88,7 +137,7 @@ class ReceiptPreviewScreen extends ConsumerWidget {
                 ),
               ),
 
-              // Interactive High-DPI PDF Preview (Sharp, not blurry)
+              // Interactive High-DPI PDF Preview (Crisp vector rendering)
               Expanded(
                 child: PdfPreview(
                   dpi: 220, // High-DPI rendering for crisp typography

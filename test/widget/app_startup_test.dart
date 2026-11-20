@@ -54,8 +54,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Shop Dashboard'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Switch Role'));
+    await tester.tap(find.byTooltip('Logout'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign Out'));
+    await tester.pump();
+    await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+    expect(find.text('I am a Customer'), findsOneWidget);
     await tester.tap(find.text('I am a Customer'));
     await tester.pump();
     await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));

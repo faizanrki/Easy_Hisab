@@ -12,7 +12,20 @@
           "package_name": "com.easyhisab.easy_hisab"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "80143681231-ndq5j5j3g32hvnvnv4ua1kdrfmo6pb64.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.easyhisab.easy_hisab",
+            "certificate_hash": "e58a35bd44aa6886347bd6113d66c684f27b51d6"
+          }
+        },
+        {
+          "client_id": "80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDUPGTIukyT9o9FupZ8xw9s6n4yLW-tMYE"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

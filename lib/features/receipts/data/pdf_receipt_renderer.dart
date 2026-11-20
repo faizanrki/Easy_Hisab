@@ -36,27 +36,42 @@ final class PdfReceiptRenderer implements ReceiptRendererPort {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                // 1. App Brand Badge (EasyHisab Logo)
+                // 1. App Brand Badge & Tagline (EasyHisab Official Brand)
                 pw.Center(
                   child: pw.Container(
                     padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3),
+                        horizontal: 14, vertical: 4),
                     decoration: pw.BoxDecoration(
-                      color: PdfColor.fromHex('#1B5E20'), // EasyHisab forest green
-                      borderRadius: pw.BorderRadius.circular(4),
+                      color: PdfColor.fromHex('#1B5E20'), // EasyHisab emerald/forest green
+                      borderRadius: pw.BorderRadius.circular(6),
                     ),
-                    child: pw.Text(
-                      'EASYHISAB • DIGITAL KHATA',
-                      style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
+                    child: pw.Column(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text(
+                          'EASYHISAB',
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        pw.SizedBox(height: 1),
+                        pw.Text(
+                          'Your Digital Udhar Khata',
+                          style: pw.TextStyle(
+                            color: PdfColor.fromHex('#C8E6C9'),
+                            fontSize: 6.5,
+                            fontWeight: pw.FontWeight.normal,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                pw.SizedBox(height: 6),
+                pw.SizedBox(height: 8),
 
                 // 2. Shopkeeper Name & Details
                 pw.Center(
@@ -368,7 +383,7 @@ final class PdfReceiptRenderer implements ReceiptRendererPort {
                 pw.SizedBox(height: 1),
                 pw.Center(
                   child: pw.Text(
-                    'Computer generated digital invoice • EasyHisab',
+                    'Computer generated digital invoice - EasyHisab',
                     style: const pw.TextStyle(
                         fontSize: 6.5, color: PdfColors.grey700),
                     textAlign: pw.TextAlign.center,
