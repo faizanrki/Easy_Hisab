@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/app_failure.dart';
+import '../../customer_portal/application/customer_token_service.dart';
+import '../../customer_portal/presentation/customer_portal_providers.dart';
 import '../../customers/customers_public.dart';
 import '../../payments/payments_public.dart';
 import '../../sales/sales_public.dart';
@@ -54,12 +56,20 @@ final receiptDataProvider =
     );
   }).toList();
 
+  final tokenService = ref.watch(customerTokenServiceProvider);
+  final token = await tokenService.getOrGenerateToken(
+    shopId: shopContext.shopId,
+    customerId: sale.customerId,
+  );
+
   return ReceiptData(
     saleId: sale.id,
     receiptNo: sale.receiptNo,
     shopName: shop?.name ?? shopContext.shopName,
     shopAddress: shop?.address,
     shopPhone: shop?.contactPhone,
+    shopCode: shop?.shopCode ?? CustomerTokenService.formatShopCode(shopContext.shopId),
+    accessToken: token,
     customerName: customer?.name ?? 'Customer (${sale.customerId})',
     customerPhone: customer?.phone,
     date: sale.createdAt,

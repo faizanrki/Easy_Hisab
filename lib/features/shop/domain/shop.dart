@@ -29,6 +29,13 @@ final class Shop {
   String? get address => details.address;
   String? get contactPhone => details.contactPhone;
 
+  /// Short, human-readable unique shop identifier (e.g. SHOP-4F29A1).
+  String get shopCode {
+    final clean = id.replaceAll('-', '').toUpperCase();
+    final suffix = clean.length >= 6 ? clean.substring(0, 6) : clean.padRight(6, '0');
+    return 'SHOP-$suffix';
+  }
+
   Shop copyWith({ShopDetails? details, DateTime? updatedAt}) => Shop(
         id: id,
         details: details ?? this.details,

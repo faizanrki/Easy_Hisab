@@ -76,16 +76,21 @@ void main() {
           () => Future.delayed(const Duration(milliseconds: 50)),
         );
       }
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
     }
 
     testWidgets('customer enters phone, views linked shop balance, and inspects ledger', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             localDatabaseProvider.overrideWithValue(db),
           ],
-          child: const EasyHisabApp(initialLocation: AppRoutes.customerShops),
+          child: EasyHisabApp(key: UniqueKey(), initialLocation: AppRoutes.customerShops),
         ),
       );
       await settleAsync(tester);

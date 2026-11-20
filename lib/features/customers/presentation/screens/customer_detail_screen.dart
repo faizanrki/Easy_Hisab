@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/app_router.dart';
 import '../../../../core/domain/app_failure.dart';
 import '../../../../core/domain/money.dart';
+import '../../../customer_portal/presentation/customer_portal_providers.dart';
 import '../../../payments/payments_public.dart';
 import '../../../shop/shop_public.dart';
 import '../../domain/customer.dart';
@@ -239,7 +240,88 @@ class CustomerDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Customer Unique Access Token Card
+              Consumer(
+                builder: (context, ref, _) {
+                  if (shop == null) return const SizedBox.shrink();
+                  final tokenAsync = ref.watch(
+                    customerActiveTokenProvider((
+                      shopId: shop.shopId,
+                      customerId: customer.id,
+                    )),
+                  );
+
+                  final activeShop = ref.watch(activeShopProvider).value;
+                  final shopCode = activeShop?.shopCode ?? 'SHOP';
+
+                  return Card(
+                    elevation: 0,
+                    color: Colors.green.shade50,
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: Colors.green.shade200),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.vpn_key_rounded,
+                                  size: 18, color: Colors.green.shade800),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Customer Online Bill Token',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.green.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Customer can view their live ledger by entering this Shop ID and Token in the Customer portal without phone OTP:',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.green.shade900),
+                          ),
+                          const SizedBox(height: 8),
+                          tokenAsync.maybeWhen(
+                            data: (token) => Row(
+                              children: [
+                                Chip(
+                                  label: Text('Shop: $shopCode',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12)),
+                                  visualDensity: VisualDensity.compact,
+                                  backgroundColor: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                Chip(
+                                  label: Text('Token: $token',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Colors.green.shade900)),
+                                  visualDensity: VisualDensity.compact,
+                                  backgroundColor: Colors.white,
+                                ),
+                              ],
+                            ),
+                            orElse: () => const Text('Generating token...'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
 
               // Outstanding Udhar Card
               Card(

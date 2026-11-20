@@ -20,83 +20,98 @@ class RoleChoiceScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              Icon(Icons.menu_book_rounded,
-                  size: 72, color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(
-                'EasyHisab',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 24 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.menu_book_rounded,
+                      size: 64, color: theme.colorScheme.primary),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your digital udhar khata',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium,
-              ),
-              const Spacer(),
-              _RoleCard(
-                icon: Icons.storefront_rounded,
-                title: 'I am a Shopkeeper',
-                subtitle: user != null
-                    ? 'Logged in as ${user.phoneNumber ?? user.displayName ?? 'Shopkeeper'}'
-                    : 'Requires mobile number login (OTP)',
-                onTap: () {
-                  if (user != null) {
-                    context.go(AppRoutes.shopDashboard);
-                  } else {
-                    context.push(AppRoutes.phoneLogin);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              _RoleCard(
-                icon: Icons.person_rounded,
-                title: 'I am a Customer',
-                subtitle: user != null
-                    ? 'Check balance for ${user.phoneNumber ?? 'Customer'}'
-                    : 'Requires mobile number login (OTP)',
-                onTap: () {
-                  if (user != null) {
-                    context.go(AppRoutes.customerShops);
-                  } else {
-                    context.push('${AppRoutes.phoneLogin}?role=customer');
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-              if (user == null) ...[
-                FilledButton.icon(
-                  onPressed: () => context.push(AppRoutes.phoneLogin),
-                  icon: const Icon(Icons.phone_android_rounded),
-                  label: const Text('Login with Mobile Number (OTP)'),
+                const SizedBox(height: 16),
+                Text(
+                  'EasyHisab',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoutes.login),
-                  icon: const Icon(Icons.email_outlined),
-                  label: const Text('Sign In with Email'),
+                Text(
+                  'Your digital udhar khata',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium,
                 ),
-              ] else ...[
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await ref.read(signOutUseCaseProvider).execute();
+                const Spacer(),
+                _RoleCard(
+                  icon: Icons.storefront_rounded,
+                  title: 'I am a Shopkeeper',
+                  subtitle: user != null
+                      ? 'Logged in as ${user.phoneNumber ?? user.displayName ?? 'Shopkeeper'}'
+                      : 'Requires mobile number login (OTP)',
+                  onTap: () {
+                    if (user != null) {
+                      context.go(AppRoutes.shopDashboard);
+                    } else {
+                      context.push(AppRoutes.phoneLogin);
+                    }
                   },
-                  icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Sign Out'),
                 ),
+                const SizedBox(height: 16),
+                _RoleCard(
+                  icon: Icons.person_rounded,
+                  title: 'I am a Customer',
+                  subtitle: user != null
+                      ? 'Check balance for ${user.phoneNumber ?? 'Customer'}'
+                      : 'Track udhar via Bill Token (No login) or Mobile Number',
+                  onTap: () => context.go(AppRoutes.customerShops),
+                ),
+                const SizedBox(height: 24),
+                if (user == null) ...[
+                  FilledButton.icon(
+                    onPressed: () => context.push(AppRoutes.phoneLogin),
+                    icon: const Icon(Icons.phone_android_rounded),
+                    label: const Text('Login with Mobile Number (OTP)'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => context.push(AppRoutes.login),
+                    icon: const Icon(Icons.email_outlined),
+                    label: const Text('Sign In with Email'),
+                  ),
+                ] else ...[
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await ref.read(signOutUseCaseProvider).execute();
+                    },
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text('Sign Out'),
+                  ),
+                ],
+                const SizedBox(height: 16),
               ],
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/domain/app_failure.dart';
 import '../../../../core/domain/money.dart';
 import '../../../../core/domain/quantity.dart';
+import '../../../customer_portal/presentation/customer_portal_providers.dart';
 import '../../../customers/customers_public.dart';
 import '../../../products/products_public.dart';
 import '../../../shop/shop_public.dart';
@@ -176,6 +177,12 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
       );
 
       final sale = await createSale.execute(cmd);
+
+      // Rotate customer token so previous token expires and new token is active
+      await ref.read(customerTokenServiceProvider).rotateToken(
+            shopId: shopId,
+            customerId: _cart.customerId!,
+          );
 
       final _ = ref.refresh(recentSalesProvider);
       final _ = ref.refresh(customerSalesProvider(_cart.customerId!));

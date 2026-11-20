@@ -2,9 +2,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/dependency_providers.dart';
 import '../../auth/presentation/auth_providers.dart';
+import '../application/customer_token_service.dart';
 import '../data/sqlite_customer_portal_repository.dart';
 import '../domain/customer_portal_repository.dart';
 import '../domain/linked_shop.dart';
+
+final customerTokenServiceProvider = Provider<CustomerTokenService>((ref) {
+  final db = ref.watch(dbTransactionProvider);
+  return CustomerTokenService(db);
+});
+
+final customerActiveTokenProvider = FutureProvider.autoDispose
+    .family<String, ({String shopId, String customerId})>((ref, arg) async {
+  final service = ref.watch(customerTokenServiceProvider);
+  return service.getOrGenerateToken(
+    shopId: arg.shopId,
+    customerId: arg.customerId,
+  );
+});
 
 final customerPortalRepositoryProvider =
     Provider<CustomerPortalRepository>((ref) {

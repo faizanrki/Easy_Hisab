@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/app_router.dart';
 import '../../../../core/domain/app_failure.dart';
 import '../../../../core/domain/phone_number.dart';
+import '../../../auth/presentation/auth_providers.dart';
 import '../../domain/shop.dart';
 import '../shop_providers.dart';
 
@@ -185,6 +186,47 @@ class _ShopEditScreenState extends ConsumerState<ShopEditScreen> {
                       onPressed: () => context.push(AppRoutes.backup),
                       icon: const Icon(Icons.backup_outlined),
                       label: const Text('Database Backup & Safety'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(color: theme.colorScheme.error),
+                      ),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Sign Out?'),
+                            content: const Text(
+                              'Are you sure you want to sign out of this account?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                ),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Sign Out'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          await ref.read(signOutUseCaseProvider).execute();
+                          ref.invalidate(activeShopProvider);
+                          if (context.mounted) {
+                            context.go(AppRoutes.chooseRole);
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Sign Out of Account'),
                     ),
                   ],
                 ),

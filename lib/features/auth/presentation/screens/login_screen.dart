@@ -38,9 +38,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final signIn = ref.read(signInWithEmailUseCaseProvider);
-      await signIn.execute(
+      final user = await signIn.execute(
         _emailController.text.trim(),
         _passwordController.text,
+      );
+      await ref.read(localSessionStorageProvider).saveSession(
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: 'shopkeeper',
       );
       if (mounted) {
         context.go(AppRoutes.shopDashboard);
@@ -68,7 +74,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final authService = ref.read(authServiceProvider);
-      await authService.signInWithGoogle();
+      final user = await authService.signInWithGoogle();
+      await ref.read(localSessionStorageProvider).saveSession(
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: 'shopkeeper',
+      );
       if (mounted) {
         context.go(AppRoutes.shopDashboard);
       }

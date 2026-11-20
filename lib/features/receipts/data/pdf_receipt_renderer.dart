@@ -295,6 +295,64 @@ final class PdfReceiptRenderer implements ReceiptRendererPort {
                           fontSize: 7, color: PdfColors.grey800)),
                 ],
 
+                if (receipt.shopCode != null && receipt.accessToken != null) ...[
+                  pw.SizedBox(height: 6),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 5),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#E8F5E9'),
+                      borderRadius: pw.BorderRadius.circular(4),
+                      border: pw.Border.all(
+                        color: PdfColor.fromHex('#2E7D32'),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text(
+                          'ONLINE UDHAR TRACKING / BILL TOKEN',
+                          style: pw.TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#1B5E20'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 3),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                          children: [
+                            pw.Text(
+                              'Shop ID: ${receipt.shopCode!}',
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                            pw.Text(
+                              'Token: ${receipt.accessToken!}',
+                              style: pw.TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColor.fromHex('#1B5E20'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Track your full khata ledger in EasyHisab using this Shop ID & Token',
+                          style: const pw.TextStyle(
+                            fontSize: 6,
+                            color: PdfColors.grey800,
+                          ),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 pw.SizedBox(height: 8),
                 pw.Divider(thickness: 0.5, color: PdfColors.grey500),
 

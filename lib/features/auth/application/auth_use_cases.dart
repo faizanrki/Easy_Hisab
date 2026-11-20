@@ -1,4 +1,5 @@
 import '../../../core/domain/app_failure.dart';
+import '../data/local_session_storage.dart';
 import '../domain/auth_service_port.dart';
 import '../domain/auth_user.dart';
 
@@ -25,11 +26,15 @@ final class SendPasswordReset {
 }
 
 final class SignOutUser {
-  const SignOutUser(this._auth);
+  const SignOutUser(this._auth, [this._session]);
 
   final AuthServicePort _auth;
+  final LocalSessionStorage? _session;
 
-  Future<void> execute() => _auth.signOut();
+  Future<void> execute() async {
+    await _session?.clearSession();
+    await _auth.signOut();
+  }
 }
 
 final class SendEmailVerification {

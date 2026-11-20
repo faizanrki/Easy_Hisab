@@ -109,9 +109,18 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
 
     try {
       final verifyOtpUseCase = ref.read(verifyPhoneOtpUseCaseProvider);
-      await verifyOtpUseCase.execute(
+      final user = await verifyOtpUseCase.execute(
         verificationId: _verificationId!,
         smsCode: code,
+      );
+
+      // Persist session to local storage
+      await ref.read(localSessionStorageProvider).saveSession(
+        uid: user.uid,
+        phone: user.phoneNumber,
+        displayName: user.displayName,
+        email: user.email,
+        role: widget.isCustomer ? 'customer' : 'shopkeeper',
       );
 
       if (mounted) {
@@ -128,6 +137,60 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
           _isLoading = false;
         });
       }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleQuickDemoLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final phone = '+923001234567';
+      final sendOtpUseCase = ref.read(sendPhoneOtpUseCaseProvider);
+      await sendOtpUseCase.execute(
+        phoneNumber: phone,
+        onCodeSent: (vid) async {
+          _verificationId = vid;
+          final verifyOtpUseCase = ref.read(verifyPhoneOtpUseCaseProvider);
+          final user = await verifyOtpUseCase.execute(
+            verificationId: vid,
+            smsCode: '123456',
+          );
+
+          await ref.read(localSessionStorageProvider).saveSession(
+            uid: user.uid,
+            phone: user.phoneNumber,
+            displayName: user.displayName,
+            email: user.email,
+            role: widget.isCustomer ? 'customer' : 'shopkeeper',
+          );
+
+          if (mounted) {
+            if (widget.isCustomer) {
+              context.go(AppRoutes.customerShops);
+            } else {
+              context.go(AppRoutes.shopDashboard);
+            }
+          }
+        },
+        onFailed: (err) {
+          if (mounted) {
+            setState(() {
+              _errorMessage = err;
+              _isLoading = false;
+            });
+          }
+        },
+      );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -229,6 +292,35 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
                         )
                       : const Icon(Icons.arrow_forward_rounded),
                   label: Text(_isLoading ? 'Sending SMS...' : 'Send OTP Code'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _handleQuickDemoLogin,
+                  icon: const Icon(Icons.bolt_rounded, color: Colors.amber),
+                  label: const Text('Instant Test / Demo Login'),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 18, color: Colors.amber.shade900),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'If mobile carrier SMS is delayed in Pakistan, use Test Phone 03001234567 and code 123456 or tap Instant Demo Login above.',
+                          style: TextStyle(
+                              fontSize: 11.5, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ] else ...[
                 TextFormField(

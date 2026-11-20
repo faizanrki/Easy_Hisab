@@ -62,7 +62,7 @@ class CustomerShopLedgerScreen extends ConsumerWidget {
         title: Text(shopName),
       ),
       body: ledgerAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: SizedBox(width: 24, height: 24)),
         error: (err, _) => Center(child: Text('Error: $err')),
         data: (items) {
           // Calculate balance

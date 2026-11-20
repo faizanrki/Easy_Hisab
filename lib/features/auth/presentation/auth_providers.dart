@@ -1,12 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/dependency_providers.dart';
 import '../../../core/contracts/auth_context_port.dart';
 import '../application/auth_use_cases.dart';
 import '../application/register_with_email.dart';
 import '../application/sign_in_with_email.dart';
 import '../data/in_memory_auth_service.dart';
+import '../data/local_session_storage.dart';
 import '../domain/auth_service_port.dart';
 import '../domain/auth_user.dart';
+
+final localSessionStorageProvider = Provider<LocalSessionStorage>((ref) {
+  final db = ref.watch(dbTransactionProvider);
+  return LocalSessionStorage(db);
+});
 
 /// The active auth service instance.
 /// Defaults to [InMemoryAuthService] so the app and tests work immediately offline.
@@ -53,7 +60,8 @@ final registerWithEmailUseCaseProvider = Provider<RegisterWithEmail>((ref) {
 
 final signOutUseCaseProvider = Provider<SignOutUser>((ref) {
   final authService = ref.watch(authServiceProvider);
-  return SignOutUser(authService);
+  final session = ref.watch(localSessionStorageProvider);
+  return SignOutUser(authService, session);
 });
 
 final resetPasswordUseCaseProvider = Provider<SendPasswordReset>((ref) {

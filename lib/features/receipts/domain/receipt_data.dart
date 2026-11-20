@@ -35,6 +35,8 @@ final class ReceiptData {
     required this.items,
     this.shopAddress,
     this.shopPhone,
+    this.shopCode,
+    this.accessToken,
     this.customerPhone,
     this.initialPayment,
     this.remainingUdhar,
@@ -47,6 +49,8 @@ final class ReceiptData {
   final String shopName;
   final String? shopAddress;
   final String? shopPhone;
+  final String? shopCode;
+  final String? accessToken;
   final String customerName;
   final String? customerPhone;
   final DateTime date;
@@ -100,6 +104,14 @@ final class ReceiptData {
 
     if (note != null && note!.isNotEmpty) {
       buffer.writeln('Note: $note');
+    }
+
+    if (shopCode != null && accessToken != null) {
+      buffer.writeln('--------------------------------');
+      buffer.writeln('🔑 *ONLINE UDHAR TRACKING:*');
+      buffer.writeln('Shop ID: *$shopCode*');
+      buffer.writeln('Bill Token: *$accessToken*');
+      buffer.writeln('Open EasyHisab app > Customer > Enter Shop ID & Token to check your complete ledger anytime (No phone number needed).');
     }
 
     buffer.writeln('--------------------------------');

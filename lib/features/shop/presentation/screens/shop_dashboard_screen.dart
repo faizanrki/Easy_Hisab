@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/app_router.dart';
 import '../../../analytics/domain/analytics_summary.dart';
 import '../../../analytics/presentation/analytics_providers.dart';
+import '../../../auth/presentation/auth_providers.dart';
 import '../../../sync/domain/sync_operation.dart';
 import '../../../sync/presentation/sync_providers.dart';
 import '../../domain/shop.dart';
@@ -79,6 +80,39 @@ class ShopDashboardScreen extends ConsumerWidget {
               final shop = activeShopAsync.value;
               if (shop != null) {
                 context.push(AppRoutes.shopEdit);
+              }
+            },
+          ),
+          IconButton(
+            tooltip: 'Logout',
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Sign Out?'),
+                  content: const Text(
+                    'Are you sure you want to sign out of this account? Your data remains securely saved.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await ref.read(signOutUseCaseProvider).execute();
+                ref.invalidate(activeShopProvider);
+                if (context.mounted) {
+                  context.go(AppRoutes.chooseRole);
+                }
               }
             },
           ),
