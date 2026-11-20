@@ -53,6 +53,20 @@ Future<void> main() async {
     debugPrint('Firebase initialization fallback to in-memory: $e');
   }
 
+  // If Firebase persisted a signed-in user (e.g. Google/Email/Phone) even if
+  // local session wasn't written yet, persist it and go straight to dashboard.
+  final activeUser = authService.currentUser;
+  if (savedSession == null && activeUser != null) {
+    await sessionStorage.saveSession(
+      uid: activeUser.uid,
+      phone: activeUser.phoneNumber,
+      displayName: activeUser.displayName,
+      email: activeUser.email,
+      role: 'shopkeeper',
+    );
+    initialLocation = AppRoutes.shopDashboard;
+  }
+
   overrides.add(
     authServiceProvider.overrideWithValue(authService),
   );

@@ -54,7 +54,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Shop Dashboard'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Logout'));
+    await tester.tap(find.byTooltip('More options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Logout'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign Out'));
     await tester.pump();

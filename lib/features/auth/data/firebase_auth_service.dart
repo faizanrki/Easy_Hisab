@@ -81,19 +81,35 @@ final class FirebaseAuthService implements AuthServicePort {
     }
   }
 
+  static const String _serverClientId =
+      '80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com';
+  static bool _googleInitialized = false;
+
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleInitialized) return;
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _serverClientId,
+    );
+    _googleInitialized = true;
+  }
+
   @override
   Future<AuthUser> signInWithGoogle() async {
     try {
-      await GoogleSignIn.instance.initialize(
-        serverClientId:
-            '80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com',
-      );
+      await _ensureGoogleInitialized();
+      // Sign out any stale Google session before prompting so account picker
+      // works cleanly on the first tap without a double prompt or stale state.
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (_) {}
+
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
-      final authTokens = await account.authorizationClient
-          .authorizationForScopes(['email', 'profile']);
+      if (idToken == null || idToken.isEmpty) {
+        throw const AuthFailure('Could not obtain Google ID token.');
+      }
+
       final credential = fb.GoogleAuthProvider.credential(
-        accessToken: authTokens?.accessToken,
         idToken: idToken,
       );
       final cred = await _firebaseAuth.signInWithCredential(credential);
@@ -103,6 +119,11 @@ final class FirebaseAuthService implements AuthServicePort {
       final user = _mapFirebaseUser(cred.user!);
       fallbackUser = user;
       return user;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw const AuthFailure('Google Sign-In was cancelled.');
+      }
+      throw AuthFailure(e.description ?? 'Google Sign-In failed.');
     } on fb.FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
     } catch (e) {

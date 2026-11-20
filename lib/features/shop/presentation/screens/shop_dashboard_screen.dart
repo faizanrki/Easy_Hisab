@@ -51,7 +51,7 @@ class ShopDashboardScreen extends ConsumerWidget {
                     : Icon(
                         pendingCount > 0
                             ? Icons.sync_problem_rounded
-                            : Icons.cloud_done_outlined,
+                            : Icons.cloud_done_rounded,
                       ),
                 onPressed: shop != null && syncState != SyncState.syncing
                     ? () async {
@@ -63,53 +63,116 @@ class ShopDashboardScreen extends ConsumerWidget {
               );
             },
           ),
-          IconButton(
-            tooltip: 'Analytics & Insights',
-            icon: const Icon(Icons.insights_rounded),
-            onPressed: () => context.push(AppRoutes.analytics),
-          ),
-          IconButton(
-            tooltip: 'Shop Settings',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
+          PopupMenuButton<String>(
+            tooltip: 'More options',
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (value) async {
               final shop = activeShopAsync.value;
-              if (shop != null) {
-                context.push(AppRoutes.shopEdit);
-              }
-            },
-          ),
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Sign Out?'),
-                  content: const Text(
-                    'Are you sure you want to sign out of this account? Your data remains securely saved.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+              switch (value) {
+                case 'analytics':
+                  context.push(AppRoutes.analytics);
+                case 'backup':
+                  context.push(AppRoutes.backup);
+                case 'settings':
+                  if (shop != null) {
+                    context.push(AppRoutes.shopEdit);
+                  }
+                case 'logout':
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Sign Out?'),
+                      content: const Text(
+                        'Are you sure you want to sign out of this account? Your data remains securely saved.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Sign Out'),
+                        ),
+                      ],
                     ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Sign Out'),
-                    ),
-                  ],
-                ),
-              );
+                  );
 
-              if (confirm == true) {
-                await ref.read(signOutUseCaseProvider).execute();
-                ref.invalidate(activeShopProvider);
-                if (context.mounted) {
-                  context.go(AppRoutes.chooseRole);
-                }
+                  if (confirm == true) {
+                    await ref.read(signOutUseCaseProvider).execute();
+                    ref.invalidate(activeShopProvider);
+                    if (context.mounted) {
+                      context.go(AppRoutes.chooseRole);
+                    }
+                  }
               }
             },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'analytics',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(
+                    Icons.insights_rounded,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text(
+                    'Analytics & Insights',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'backup',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(
+                    Icons.add_to_drive_rounded,
+                    color: Colors.green.shade700,
+                  ),
+                  title: const Text(
+                    'Google Drive & Backup',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'settings',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(
+                    Icons.tune_rounded,
+                    color: theme.colorScheme.secondary,
+                  ),
+                  title: const Text(
+                    'Shop Settings',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(
+                    Icons.logout_rounded,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(
+                    'Logout',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

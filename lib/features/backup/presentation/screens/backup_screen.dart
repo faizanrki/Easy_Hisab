@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -10,6 +9,7 @@ import '../../../customers/customers_public.dart';
 import '../../../products/products_public.dart';
 import '../../../sales/presentation/sale_providers.dart';
 import '../../../shop/shop_public.dart';
+import '../../data/google_drive_backup_service.dart';
 import '../backup_providers.dart';
 
 class BackupScreen extends ConsumerStatefulWidget {
@@ -20,9 +20,12 @@ class BackupScreen extends ConsumerStatefulWidget {
 }
 
 class _BackupScreenState extends ConsumerState<BackupScreen> {
+  final _driveService = GoogleDriveBackupService();
   bool _isCreating = false;
   bool _isRestoring = false;
+  bool _isDriveBusy = false;
   String? _googleDriveAccount;
+  DateTime? _lastDriveSyncAt;
 
   @override
   void initState() {
@@ -32,38 +35,180 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
   void _checkGoogleAccount() {
     final user = ref.read(authServiceProvider).currentUser;
-    if (user != null && user.email != null && user.email!.contains('@gmail.com')) {
+    if (user != null &&
+        user.email != null &&
+        user.email!.toLowerCase().contains('gmail.com')) {
       _googleDriveAccount = user.email;
     }
   }
 
   Future<void> _handleConnectGoogleDrive() async {
+    setState(() => _isDriveBusy = true);
     try {
-      await GoogleSignIn.instance.initialize(
-        serverClientId:
-            '80143681231-qdjv369q92chcon90jkipdi51a2n6icv.apps.googleusercontent.com',
-      );
-      final account = await GoogleSignIn.instance.authenticate();
+      final auth = await _driveService.connectAndAuthorize(interactive: true);
       setState(() {
-        _googleDriveAccount = account.email;
+        _googleDriveAccount = auth.email;
       });
+
+      // Automatically create and upload backup to Google Drive on connect.
+      final record =
+          await ref.read(backupHistoryProvider.notifier).createBackup();
+      if (record.isSuccess) {
+        final jsonString =
+            await ref.read(backupHistoryProvider.notifier).exportBackup();
+        final uploadedAt = await _driveService.uploadBackup(
+          jsonContent: jsonString,
+          headers: auth.headers,
+        );
+        if (mounted) {
+          setState(() => _lastDriveSyncAt = uploadedAt);
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Google Drive connected as ${account.email}'),
+            content: Text(
+              'Google Drive connected (${auth.email}) & automatic backup saved!',
+            ),
+            backgroundColor: Colors.green.shade700,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not connect Google Drive: $e')),
+          SnackBar(
+            content: Text('Could not connect/backup to Google Drive: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDriveBusy = false);
       }
     }
   }
 
-  Future<void> _handleCreateAndExportBackup() async {
+  Future<void> _handleBackupToDrive() async {
+    setState(() {
+      _isDriveBusy = true;
+      _isCreating = true;
+    });
+    try {
+      final auth = await _driveService.connectAndAuthorize(interactive: true);
+      final record =
+          await ref.read(backupHistoryProvider.notifier).createBackup();
+      if (!record.isSuccess) {
+        throw StateError(record.error ?? 'Local snapshot failed');
+      }
+      final jsonString =
+          await ref.read(backupHistoryProvider.notifier).exportBackup();
+      final uploadedAt = await _driveService.uploadBackup(
+        jsonContent: jsonString,
+        headers: auth.headers,
+      );
+      if (mounted) {
+        setState(() {
+          _googleDriveAccount = auth.email;
+          _lastDriveSyncAt = uploadedAt;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Backup automatically uploaded to Drive (${auth.email})!'),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google Drive backup failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDriveBusy = false;
+          _isCreating = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleRestoreFromDrive() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore from Google Drive?'),
+        content: const Text(
+          'EasyHisab will automatically fetch your latest backup from Google Drive and restore your shops, customers, products, and udhar records.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.cloud_download_rounded, size: 18),
+            label: const Text('Restore Automatically'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isDriveBusy = true;
+      _isRestoring = true;
+    });
+    try {
+      final auth = await _driveService.connectAndAuthorize(interactive: true);
+      final jsonString =
+          await _driveService.downloadLatestBackup(auth.headers);
+
+      await ref.read(backupHistoryProvider.notifier).restoreBackup(jsonString);
+
+      ref.invalidate(activeShopProvider);
+      ref.invalidate(customerListProvider);
+      ref.invalidate(productListProvider);
+      ref.invalidate(recentSalesProvider);
+
+      if (mounted) {
+        setState(() => _googleDriveAccount = auth.email);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data automatically restored from Google Drive!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Drive restore failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDriveBusy = false;
+          _isRestoring = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleCreateLocalBackup() async {
     setState(() => _isCreating = true);
     try {
       final record =
@@ -193,7 +338,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             .read(backupHistoryProvider.notifier)
             .restoreBackup(textController.text.trim());
 
-        // Invalidate active providers so all screens update immediately
         ref.invalidate(activeShopProvider);
         ref.invalidate(customerListProvider);
         ref.invalidate(productListProvider);
@@ -250,15 +394,26 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.cloud_sync_rounded,
-                              size: 28, color: Color(0xFF1B5E20)),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1B5E20)
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.cloud_sync_rounded,
+                              size: 26,
+                              color: Color(0xFF1B5E20),
+                            ),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Google Drive Cloud Backup',
+                                  'Google Drive Auto Backup',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
@@ -267,7 +422,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                                 Text(
                                   _googleDriveAccount != null
                                       ? 'Connected: $_googleDriveAccount'
-                                      : 'Connect your Google account for automatic cloud backups',
+                                      : 'Connect Google Drive to auto-save & auto-restore backups',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: _googleDriveAccount != null
                                         ? Colors.green.shade800
@@ -277,39 +432,79 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                                         : FontWeight.normal,
                                   ),
                                 ),
+                                if (_lastDriveSyncAt != null)
+                                  Text(
+                                    'Last Drive sync: ${DateFormat('dd MMM, hh:mm a').format(_lastDriveSyncAt!)}',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       if (_googleDriveAccount == null)
-                        FilledButton.tonalIcon(
-                          onPressed: _handleConnectGoogleDrive,
-                          icon: const Icon(Icons.add_to_drive_rounded, size: 18),
-                          label: const Text('Connect Google Drive'),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed:
+                                _isDriveBusy ? null : _handleConnectGoogleDrive,
+                            icon: _isDriveBusy
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.add_to_drive_rounded,
+                                    size: 18),
+                            label: Text(
+                              _isDriveBusy
+                                  ? 'Connecting & Backing Up...'
+                                  : 'Connect Google Drive',
+                            ),
+                          ),
                         )
                       else
                         Row(
                           children: [
                             Expanded(
                               child: FilledButton.tonalIcon(
-                                onPressed: _isCreating
+                                onPressed: _isDriveBusy
                                     ? null
-                                    : _handleCreateAndExportBackup,
-                                icon: const Icon(Icons.cloud_upload_outlined,
-                                    size: 18),
+                                    : _handleBackupToDrive,
+                                icon: _isDriveBusy && _isCreating
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.cloud_upload_outlined,
+                                        size: 18),
                                 label: const Text('Backup to Drive'),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed:
-                                    _isRestoring ? null : _showRestoreDialog,
-                                icon: const Icon(
-                                    Icons.cloud_download_outlined,
-                                    size: 18),
+                                onPressed: _isDriveBusy
+                                    ? null
+                                    : _handleRestoreFromDrive,
+                                icon: _isDriveBusy && _isRestoring
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.cloud_download_outlined,
+                                        size: 18),
                                 label: const Text('Restore from Drive'),
                               ),
                             ),
@@ -330,7 +525,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed:
-                          _isCreating ? null : _handleCreateAndExportBackup,
+                          _isCreating ? null : _handleCreateLocalBackup,
                       icon: _isCreating
                           ? const SizedBox(
                               width: 18,
